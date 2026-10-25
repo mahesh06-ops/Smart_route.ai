@@ -31,7 +31,7 @@
 
 5. **Interactive Frontend SaaS Experience**:
    - Dark-mode-first glassmorphism design.
-   - Interactive Leaflet map with **CARTO basemaps** (Dark Matter, Positron, Voyager).
+   - Interactive MapLibre map with **MapTiler vector styles**, including Hybrid.
    - Radar & bar comparison charts powered by Chart.js.
    - SQLite search history with reload & management capabilities.
 
@@ -47,7 +47,7 @@ s route/
 │   └── main.py                 # FastAPI application, CORS, static mounts
 ├── frontend/
 │   ├── css/                    # Glassmorphic themes, responsive styles
-│   ├── js/                     # Map (CARTO/Leaflet), charts, route handler, history
+│   ├── js/                     # Map (MapLibre/MapTiler), charts, route handler, history
 │   └── index.html              # Modern web client
 ├── src/
 │   ├── config/                 # Pydantic settings & environment configuration
@@ -81,6 +81,9 @@ pip install -r requirements.txt
 # Copy .env.example to .env if not already present
 cp .env.example .env
 ```
+Set `MAPTILER_API_KEY` in `.env` to a MapTiler browser key restricted to the origins
+that serve this application. The map uses MapTiler's Hybrid vector style; the key is
+delivered to the browser for style requests, so apply provider-side origin restrictions.
 
 ### 3. Running the Application
 ```bash
@@ -116,7 +119,7 @@ tests/test_weather.py ...
 ## 📡 API Reference
 
 ### Health & Status
-- `GET /api/health` — Subsystem operational status and CARTO readiness.
+- `GET /api/health` — Subsystem operational status.
 - `GET /api/settings/api-status` — Connectivity status of external data providers.
 
 ### Route Optimization

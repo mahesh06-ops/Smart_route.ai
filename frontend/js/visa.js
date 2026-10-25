@@ -68,10 +68,10 @@ function switchMainModule(moduleName) {
     if (visaContent) visaContent.style.display = "none";
     if (roadNav) roadNav.style.display = "flex";
     if (visaNav) visaNav.style.display = "none";
-    // Trigger Leaflet map invalidateSize
+    // Resize the MapLibre canvas after returning to the road-routing module.
     if (typeof mapInstance !== "undefined" && mapInstance) {
       setTimeout(() => {
-        mapInstance.invalidateSize();
+        mapInstance.resize();
         if (typeof recenterMap === "function") recenterMap();
       }, 100);
     }

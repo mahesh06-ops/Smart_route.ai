@@ -23,10 +23,15 @@ def test_api_settings():
     response = client.get("/api/settings")
     assert response.status_code == 200
     data = response.json()
-    assert "carto_configured" in data
-    assert "carto_attribution" in data
+    assert "maptiler_configured" in data
     # Ensure raw secret is not leaked in public settings
     assert "eyJvcmciOi" not in str(data)
+
+
+def test_api_map_config():
+    response = client.get("/api/settings/map-config")
+    assert response.status_code == 200
+    assert "maptiler_api_key" in response.json()
 
 
 def test_route_calculation_api():

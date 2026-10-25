@@ -354,7 +354,7 @@ function renderComparisonTable(routes) {
 }
 
 /**
- * Activates a specific route on the interactive Leaflet map and switches to the Dashboard
+ * Activates a specific route on the interactive MapLibre map and switches to the Dashboard
  */
 function activateRouteFromCompare(routeId) {
   if (typeof highlightRouteOnMap === "function") {

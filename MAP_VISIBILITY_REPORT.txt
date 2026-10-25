@@ -1,0 +1,89 @@
+﻿=== SMART ROUTE AI MAP VISIBILITY REPORT ===
+Request failed : http://127.0.0.1:8000/
+Request failed : http://127.0.0.1:8000/api/settings/map-config
+Request failed : http://127.0.0.1:8000/static/js/map.js
+Request failed : http://127.0.0.1:8000/static/js/app.js
+Could not read map configuration: Unable to connect to the remote server
+HTML contains map container: True
+HTML references map.js: True
+HTML references app.js: True
+=== MAP CSS ===
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:170:.loading-card {
+> C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:171:  display: none;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:172:  margin-top: 16px;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:173:  padding: 16px;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:174:  background: var(--bg-tertiary);
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:223:/* Map Section */
+> C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:224:.map-container-card {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:225:  display: flex;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:226:  flex-direction: column;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:227:  height: 680px;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:286:
+> C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:287:#map {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:288:  flex: 1;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:289:  width: 100%;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:290:  background: #0f172a;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:750:.visa-pane {
+> C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:751:  display: none;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:752:  animation: fadeIn 0.3s ease;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:753:}
+  C:\Users\Admin\Documents\Desktop\s route\frontend\css\dashboard.css:754:.visa-pane.active {
+=== MAP INITIALIZATION ===
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:10:  // 1. Load API & System Settings before configuring the MapTiler style.
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:11:  await loadSystemSettings();
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:12:
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:13:  // 2. Initialize the map; route rendering is deferred until its style loads.
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:14:  initMap(appSettings && appSettings.maptiler_api_key);
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:15:
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:16:  // 3. Register Navigation Tabs
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:220: */
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:221:async function loadSystemSettings() {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:222:  try {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:223:    const res = await fetch("/api/settings");
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:230:    const mapConfig = await mapConfigResponse.json();
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:231:    appSettings.maptiler_api_key = mapConfig.maptiler_api_key;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:232:
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\app.js:233:    if (appSettings.default_fuel_price) {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:33: */
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:34:function initMap(apiKey = mapApiKey, initialStyle = "hybrid") {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:35:  if (mapInstance) return mapInstance;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:36:
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:38:  if (!mapApiKey) {
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:39:    showMapStatus("Configure MAPTILER_API_KEY in .env and restart the app to load the map.");
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:40:    return null;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:41:  }
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:43:  if (typeof maplibregl === "undefined") {
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:44:    showMapStatus("MapLibre GL JS could not be loaded. Check the network connection and refresh.");
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:45:    return null;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:46:  }
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:50:    container: "map",
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:51:    style: getMapStyleUrl(currentMapStyle),
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:52:    center: [77.0, 14.5],
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:53:    zoom: 7,
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:57:
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:58:  mapInstance.on("style.load", () => {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:59:    mapStyleLoaded = true;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:60:    mapErrorReported = false;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:64:
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:65:  mapInstance.on("error", () => {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:66:    if (!mapStyleLoaded && !mapErrorReported) {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:67:      mapErrorReported = true;
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:68:      showMapStatus(MAP_STYLE_ERROR);
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:69:      console.error("Map style failed to load. Check the MapTiler API key and network connection.");
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:70:    }
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:76:
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:77:function getMapStyleUrl(styleName) {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:78:  const styleId = MAPTILER_STYLES[styleName] || MAPTILER_STYLES.hybrid;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:79:  return `https://api.maptiler.com/maps/${styleId}/style.json?key=${encodeURIComponent(mapApiKey)}`;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:81:
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:82:function showMapStatus(message) {
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:83:  const container = document.getElementById("map");
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:84:  if (!container) return;
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:122:  mapErrorReported = false;
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:123:  mapInstance.setStyle(getMapStyleUrl(nextStyle));
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:124:}
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:125:
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:397:  selectedRouteId = null;
+> C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:398:  if (!mapInstance) initMap(mapApiKey);
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:399:  if (mapStyleLoaded) renderRouteOverlays();
+  C:\Users\Admin\Documents\Desktop\s route\frontend\js\map.js:400:}

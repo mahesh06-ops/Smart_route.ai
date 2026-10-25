@@ -1,4 +1,4 @@
-"""
+﻿"""
 Health check and system diagnostics endpoint.
 """
 from fastapi import APIRouter
@@ -14,7 +14,6 @@ async def health_check():
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "carto_status": "ready" if settings.CARTO_API_KEY else "unconfigured",
         "services": {
             "geocoding": "operational",
             "routing": "operational",
@@ -23,3 +22,4 @@ async def health_check():
             "database": "connected" if settings.DB_PATH.exists() else "uninitialized"
         }
     }
+

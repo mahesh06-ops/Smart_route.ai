@@ -30,8 +30,14 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
     # API Keys
-    CARTO_API_KEY: str = os.getenv("CARTO_API_KEY", "")
+    # MapTiler browser-facing basemap key; restrict it to trusted origins.
+    MAPTILER_API_KEY: str = (
+    os.getenv("MAPTILER_API_KEY", "").strip()
+    or os.getenv("VITE_MAPTILER_API_KEY", "").strip()
+    or os.getenv("MAP_API_KEY", "").strip()
+)
     MAP_API_KEY: str = os.getenv("MAP_API_KEY", "")
+
     WEATHER_API_KEY: str = os.getenv("WEATHER_API_KEY", "")
     TRAFFIC_API_KEY: str = os.getenv("TRAFFIC_API_KEY", "")
 
@@ -48,16 +54,6 @@ class Settings:
         "custom": 14.0      # default custom km / Liter
     }
 
-    # CARTO Basemap Styles
-    CARTO_TILES = {
-        "dark": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        "light": "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-        "voyager": "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-    }
-    CARTO_ATTRIBUTION: str = (
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> '
-        'contributors &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>'
-    )
 
     @classmethod
     def get_public_settings(cls) -> Dict[str, Any]:
@@ -69,9 +65,10 @@ class Settings:
             "app_name": cls.APP_NAME,
             "version": cls.APP_VERSION,
             "tagline": cls.TAGLINE,
-            "carto_configured": bool(cls.CARTO_API_KEY and not cls.CARTO_API_KEY.startswith("YOUR_")),
-            "carto_attribution": cls.CARTO_ATTRIBUTION,
-            "carto_tiles": cls.CARTO_TILES,
+            "maptiler_configured": bool(
+                cls.MAPTILER_API_KEY
+                and not cls.MAPTILER_API_KEY.startswith("YOUR_")
+            ),
             "routing_configured": True,  # OSRM + Fallback available
             "weather_configured": True,  # Open-Meteo + Fallback available
             "traffic_configured": True,  # Simulated + Live fallback available
@@ -90,3 +87,4 @@ class Settings:
 
 
 settings = Settings()
+

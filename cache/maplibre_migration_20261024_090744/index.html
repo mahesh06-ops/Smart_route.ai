@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Smart Route AI - AI-Based Multi-Factor Smart Route Optimization & Recommendation System using CARTO basemaps, traffic, weather, safety, and fuel intelligence." />
+  <title>SMART ROUTE AI — Intelligent Multi-Factor Route Optimization</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <link rel="stylesheet" href="/static/css/dashboard.css" />
+  <link rel="stylesheet" href="/static/css/responsive.css" />
+</head>
+<body>
+
+  <!-- Emergency Mode Banner -->
+  <div id="emergencyBanner" class="emergency-banner">
+    🚨 EMERGENCY MODE ACTIVE — Prioritizing rapid travel time, congestion bypass and transit safety over fuel economy
+  </div>
+
+  <!-- Top Navbar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <span class="brand-logo">🌐</span>
+      <div class="brand-info">
+        <span class="brand-name">SmartRoute AI</span>
+        <span class="brand-tagline">From the best road route to the best life route</span>
+      </div>
+    </div>
+
+    <!-- Main Module Switcher (Road vs Visa) -->
+    <div class="module-switch-bar">
+      <button class="module-switch-btn active" data-module="road">
+        <span>🚗</span> Road Route
+      </button>
+      <button class="module-switch-btn" data-module="visa">
+        <span>🌍</span> Smart Visa Route
+      </button>
+    </div>
+
+    <!-- Road Route Navigation Tabs -->
+    <nav id="roadNavLinks">
+      <ul class="nav-links">
+        <li class="nav-item active" data-tab="dashboard">
+          <span>⚡</span> Dashboard
+        </li>
+        <li class="nav-item" data-tab="compare">
+          <span>⚖️</span> Compare Routes
+        </li>
+        <li class="nav-item" data-tab="analytics">
+          <span>📊</span> Analytics
+        </li>
+        <li class="nav-item" data-tab="history">
+          <span>🕒</span> History
+        </li>
+        <li class="nav-item" data-tab="settings">
+          <span>⚙️</span> Settings
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Visa Route Navigation Tabs (Visible when in Visa Mode) -->
+    <nav id="visaNavLinks" style="display: none;">
+      <ul class="visa-nav-links">
+        <li class="visa-nav-item active" data-visa-tab="recommend">
+          <span>🎯</span> Find Best Country
+        </li>
+        <li class="visa-nav-item" data-visa-tab="all-countries">
+          <span>🌍</span> All Countries
+        </li>
+        <li class="visa-nav-item" data-visa-tab="compare">
+          <span>⚖️</span> Compare
+        </li>
+        <li class="visa-nav-item" data-visa-tab="details">
+          <span>🛂</span> Visa Details
+        </li>
+        <li class="visa-nav-item" data-visa-tab="simulator">
+          <span>🔮</span> What-If Simulator
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Controls & Status Badges -->
+    <div class="nav-actions">
+      <button id="btnEmergencyToggle" class="btn-emergency-toggle" title="Toggle Emergency Vehicle Routing">
+        <span>🚨 EMERGENCY MODE</span>
+      </button>
+
+      <span id="demoBadge" class="badge-mode badge-live" title="Toggle between Live APIs and Simulated Fallback">
+        LIVE DATA MODE
+      </span>
+
+      <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Dark/Light Theme">
+        ☀️
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="main-content">
+
+    <!-- MODULE 1: SMART ROAD ROUTE -->
+    <div id="module-road">
+
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+      <div class="hero-header">
+        <h1 class="hero-title">
+          <span>AI-POWERED ROUTE INTELLIGENCE</span>
+        </h1>
+        <p class="hero-subtitle">
+          Evaluate real-world corridors using traffic congestion, meteorological risks, safety ratings, travel time and fuel consumption.
+        </p>
+      </div>
+
+      <div class="dashboard-grid">
+        <!-- Input & Control Panel -->
+        <aside class="card">
+          <div class="panel-title">
+            <span>🗺️ Route Parameters</span>
+            <span style="font-size: 0.75rem; color: var(--accent-cyan);">Multi-Factor AI</span>
+          </div>
+
+          <form id="routeForm">
+            <!-- Source Input -->
+            <div class="form-group">
+              <label for="sourceInput" class="form-label">📍 From (Source)</label>
+              <div class="input-with-icon">
+                <span class="input-icon">🟢</span>
+                <input type="text" id="sourceInput" placeholder="Enter starting city (e.g. Ballari)" value="Ballari" required />
+              </div>
+            </div>
+
+            <!-- Swap Locations Button -->
+            <div class="swap-btn-container">
+              <button type="button" id="btnSwap" class="btn-swap" title="Swap Source & Destination">
+                ⇄
+              </button>
+            </div>
+
+            <!-- Destination Input -->
+            <div class="form-group">
+              <label for="destInput" class="form-label">🏁 To (Destination)</label>
+              <div class="input-with-icon">
+                <span class="input-icon">🔴</span>
+                <input type="text" id="destInput" placeholder="Enter destination city (e.g. Bengaluru)" value="Bengaluru" required />
+              </div>
+            </div>
+
+            <!-- Quick Demo City Chips -->
+            <div class="form-group">
+              <span class="form-label">Popular Corridors:</span>
+              <div class="quick-chips">
+                <span class="chip" data-src="Ballari" data-dest="Bengaluru">Ballari → Bengaluru</span>
+                <span class="chip" data-src="Hyderabad" data-dest="Bengaluru">Hyderabad → Bengaluru</span>
+                <span class="chip" data-src="Mumbai" data-dest="Pune">Mumbai → Pune</span>
+                <span class="chip" data-src="Chennai" data-dest="Bengaluru">Chennai → Bengaluru</span>
+              </div>
+            </div>
+
+
+
+            <!-- Fuel Price Input -->
+            <div class="form-group">
+              <label for="fuelPriceInput" class="form-label">⛽ Fuel Price (₹ / Liter)</label>
+              <input type="number" id="fuelPriceInput" step="0.5" value="102.5" />
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submitBtn" class="btn-submit">
+              <span>✨ FIND SMART ROUTE</span>
+            </button>
+          </form>
+
+          <!-- Multi-Stage Loading Card -->
+          <div id="loadingCard" class="loading-card">
+            <div class="loading-header">
+              <div class="spinner"></div>
+              <span>Optimizing Routes...</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div id="loadingBar" class="progress-bar-fill"></div>
+            </div>
+            <div id="loadingText" class="loading-stage-text">
+              Analyzing locations and coordinates...
+            </div>
+          </div>
+        </aside>
+
+        <!-- Large Interactive Map -->
+        <section class="card map-container-card">
+          <div class="map-header-bar">
+            <div class="map-title">
+              <span>🌐 CARTO Basemap & Route Geometry</span>
+            </div>
+            <div class="map-controls-group">
+              <label for="mapStyleSelect" class="map-ctrl-label">Basemap:</label>
+              <select id="mapStyleSelect" class="map-ctrl-select" onchange="setMapBasemap(this.value)">
+                <option value="voyager" selected>🗺️ CARTO Voyager (Ultra Clear)</option>
+                <option value="dark">🌙 CARTO Dark Matter</option>
+                <option value="light">☀️ CARTO Positron Light</option>
+                <option value="osm">🌍 OpenStreetMap High-Res</option>
+              </select>
+              <button class="map-ctrl-btn" onclick="recenterMap()">Fit Bounds</button>
+            </div>
+          </div>
+
+          <!-- Leaflet Map Container -->
+          <div id="map"></div>
+
+          <!-- Map Color Legend -->
+          <div class="map-legend">
+            <div class="legend-item">
+              <div class="legend-color" style="background: #10B981;"></div>
+              <span>Recommended (Optimal)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #F59E0B;"></div>
+              <span>Alternative Corridor 1</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #8B5CF6;"></div>
+              <span>Alternative Corridor 2</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- AI RECOMMENDED ROUTE SHOWCASE SECTION -->
+      <section id="recommendationSection" class="recommendation-section" style="display: none;">
+        <div class="recommended-card">
+          <div class="rec-badge-corner">
+            <span>🏆 AI RECOMMENDED ROUTE</span>
+          </div>
+
+          <div class="rec-header-flex">
+            <div class="rec-route-info">
+              <h3 id="recRouteName">Corridor 1 (National Highway / Primary)</h3>
+              <p class="rec-route-corridor">Optimized across 6 environmental and vehicular dimensions</p>
+            </div>
+
+            <div class="score-badge-large">
+              <div class="score-number" id="recSmartScore">94</div>
+              <div class="score-label-box">
+                <span class="score-label">SMART SCORE</span>
+                <span class="score-max">/ 100 max</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Key Metrics Grid -->
+          <div class="metrics-grid">
+            <div class="metric-box">
+              <span class="metric-box-title">Distance</span>
+              <span class="metric-box-val" id="recDistance">325 km</span>
+              <span class="metric-box-sub">Total path</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-box-title">Est. Duration</span>
+              <span class="metric-box-val" id="recDuration">5h 48m</span>
+              <span class="metric-box-sub">Incl. traffic delay</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-box-title">Traffic Level</span>
+              <span class="metric-box-val" id="recTraffic" style="color: #10B981;">LOW</span>
+              <span class="metric-box-sub">Congestion index</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-box-title">Weather</span>
+              <span class="metric-box-val" id="recWeather">Clear (28°C)</span>
+              <span class="metric-box-sub">Open-Meteo</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-box-title">Safety Index</span>
+              <span class="metric-box-val" id="recSafety" style="color: #10B981;">91 / 100</span>
+              <span class="metric-box-sub">Corridor risk</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-box-title">Fuel Required</span>
+              <span class="metric-box-val" id="recFuel">21.6 L</span>
+              <span class="metric-box-sub" id="recCost">~₹2,214 est.</span>
+            </div>
+          </div>
+
+          <!-- Dynamic Why This Route & Smart Score Breakdown -->
+          <div class="rec-details-dual">
+            <!-- Left: Dynamic AI Justification -->
+            <div class="why-card">
+              <h4 class="section-subtitle">
+                <span>💡</span> <span id="whyHeadline">Why This Route is Recommended</span>
+              </h4>
+              <p id="whySummary" class="why-summary-text">
+                Route is selected because it delivers the smartest multi-factor balance.
+              </p>
+
+              <div style="margin-top: 12px;">
+                <span class="form-label" style="margin-bottom: 6px;">Key Advantages:</span>
+                <ul id="prosList" class="pros-list"></ul>
+              </div>
+
+              <div style="margin-top: 14px;">
+                <span class="form-label" style="margin-bottom: 6px;">Trade-offs / Caveats:</span>
+                <ul id="caveatsList" class="caveats-list"></ul>
+              </div>
+            </div>
+
+            <!-- Right: Smart Score Component Breakdown -->
+            <div class="breakdown-card">
+              <h4 class="section-subtitle">
+                <span>📊</span> <span>Smart Score Breakdown</span>
+              </h4>
+
+              <div class="breakdown-row">
+                <div class="breakdown-label-flex">
+                  <span>Travel Time Efficiency</span>
+                  <span id="scoreTime">23 / 25</span>
+                </div>
+                <div class="meter-bg">
+                  <div id="meterTime" class="meter-fill" style="width: 92%;"></div>
+                </div>
+              </div>
+
+              <div class="breakdown-row">
+                <div class="breakdown-label-flex">
+                  <span>Traffic Flow Smoothness</span>
+                  <span id="scoreTraffic">18 / 20</span>
+                </div>
+                <div class="meter-bg">
+                  <div id="meterTraffic" class="meter-fill" style="width: 90%;"></div>
+                </div>
+              </div>
+
+              <div class="breakdown-row">
+                <div class="breakdown-label-flex">
+                  <span>Corridor Safety Rating</span>
+                  <span id="scoreSafety">19 / 20</span>
+                </div>
+                <div class="meter-bg">
+                  <div id="meterSafety" class="meter-fill" style="width: 95%;"></div>
+                </div>
+              </div>
+
+              <div class="breakdown-row">
+                <div class="breakdown-label-flex">
+                  <span>Weather Quality</span>
+                  <span id="scoreWeather">14 / 15</span>
+                </div>
+                <div class="meter-bg">
+                  <div id="meterWeather" class="meter-fill" style="width: 93%;"></div>
+                </div>
+              </div>
+
+              <div class="breakdown-row">
+                <div class="breakdown-label-flex">
+                  <span>Fuel Economy</span>
+                  <span id="scoreFuel">9 / 10</span>
+                </div>
+                <div class="meter-bg">
+                  <div id="meterFuel" class="meter-fill" style="width: 90%;"></div>
+                </div>
+              </div>
+
+              <div class="breakdown-row">
+                <div class="breakdown-label-flex">
+                  <span>Spatial Directness</span>
+                  <span id="scoreDistance">8 / 10</span>
+                </div>
+                <div class="meter-bg">
+                  <div id="meterDistance" class="meter-fill" style="width: 80%;"></div>
+                </div>
+              </div>
+
+              <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; font-weight: 800; font-size: 1rem;">
+                <span>Total Smart Score</span>
+                <span id="scoreTotal" style="color: #10B981;">91 / 100</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Weather Forecasting & Hazard Intelligence Center -->
+          <div class="weather-forecast-card" id="weatherForecastSection">
+            <div class="weather-header-row">
+              <div class="weather-header-title">
+                <span class="weather-main-icon" id="weathMainIcon">☀️</span>
+                <div>
+                  <h4 style="margin: 0; font-size: 1.05rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <span>Live Meteorological Corridor Forecast</span>
+                    <span id="weathLiveTag" class="badge-live-pulse">LIVE OPEN-METEO</span>
+                  </h4>
+                  <p id="weathSummaryText" style="margin: 3px 0 0 0; font-size: 0.84rem; color: var(--text-secondary);">
+                    Optimal conditions along journey corridor.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Quick Origin vs Destination Weather Pills -->
+              <div class="weather-pills-row" id="weatherPillsRow">
+                <div class="weather-pill" id="pillOriginWeather">
+                  <span class="pill-label">Origin:</span>
+                  <span class="pill-val" id="pillOriginVal">28°C ☀️ Clear</span>
+                </div>
+                <div class="weather-pill" id="pillDestWeather">
+                  <span class="pill-label">Destination:</span>
+                  <span class="pill-val" id="pillDestVal">26°C ⛅ Partly Cloudy</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Meteorological Hazards / Advisories -->
+            <div id="weatherHazardsContainer" class="weather-hazards-box" style="display: none;">
+              <span style="font-weight: 700; font-size: 0.82rem; color: #f59e0b;">⚠️ Driving Advisories:</span>
+              <div id="weatherHazardsList" class="weather-hazards-tags"></div>
+            </div>
+
+            <!-- Detailed Weather Parameters Grid -->
+            <div class="weather-params-grid">
+              <div class="weather-param-item">
+                <span class="param-icon">🌡️</span>
+                <div class="param-data">
+                  <span class="param-title">Temperature / Feels</span>
+                  <span class="param-value" id="weathTempDetail">28.0°C (Feels 29.5°C)</span>
+                </div>
+              </div>
+              <div class="weather-param-item">
+                <span class="param-icon">💧</span>
+                <div class="param-data">
+                  <span class="param-title">Precipitation & Chance</span>
+                  <span class="param-value" id="weathPrecipDetail">0.0 mm (5% chance)</span>
+                </div>
+              </div>
+              <div class="weather-param-item">
+                <span class="param-icon">💨</span>
+                <div class="param-data">
+                  <span class="param-title">Wind & Crosswinds</span>
+                  <span class="param-value" id="weathWindDetail">12.0 km/h (Gusts 16 km/h)</span>
+                </div>
+              </div>
+              <div class="weather-param-item">
+                <span class="param-icon">👁️</span>
+                <div class="param-data">
+                  <span class="param-title">Roadway Visibility</span>
+                  <span class="param-value" id="weathVisDetail">10.0 km (Optimal)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 12-Hour Journey Forecast Timeline Strip -->
+            <div class="hourly-forecast-container">
+              <div class="hourly-forecast-title">
+                <span>🕒 12-Hour Corridor Weather Forecast Timeline:</span>
+              </div>
+              <div class="hourly-strip" id="hourlyForecastStrip">
+                <!-- Dynamically injected -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- TAB 2: COMPARE ROUTES -->
+    <section id="tab-compare" class="tab-pane">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+          <div>
+            <h2 class="hero-title" style="font-size: 1.4rem; margin-bottom: 6px;">
+              <span>⚖️ Multi-Factor Route & Corridor Comparison</span>
+            </h2>
+            <p class="hero-subtitle" style="margin-bottom: 0;">
+              Examine side-by-side trade-offs, specific highways, congestion friction, and safety profiles across alternative corridors.
+            </p>
+          </div>
+          <button class="btn-primary" onclick="switchTab('dashboard')" style="padding: 8px 16px; font-size: 0.85rem;">
+            <span>🗺️ Return to Interactive Map</span>
+          </button>
+        </div>
+
+        <!-- Corridor Context Banner -->
+        <div id="compareCorridorBanner" class="compare-header-box" style="display: none;">
+          <div class="compare-corridor-title">
+            <span>📍</span>
+            <span id="compareCorridorSource">Origin</span>
+            <span style="color: var(--accent-primary);">➔</span>
+            <span>🏁</span>
+            <span id="compareCorridorDest">Destination</span>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <span id="compareRouteCountBadge" class="badge" style="background: rgba(59, 130, 246, 0.15); color: #3B82F6; font-weight: 700;">
+              3 Corridors Evaluated
+            </span>
+            <span id="comparePreferenceBadge" class="badge" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary);">
+              Preference: Balanced
+            </span>
+          </div>
+        </div>
+
+        <!-- Section 1: Side-by-Side Specific Route Cards -->
+        <h3 style="font-size: 1.05rem; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+          <span>🛣️ Specific Route Corridors</span>
+          <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-muted);">(Select any corridor to inspect on map)</span>
+        </h3>
+        <div id="comparisonCardsContainer" class="compare-cards-grid">
+          <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 32px; background: var(--bg-tertiary); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            Calculate a route on the Dashboard to inspect side-by-side corridor options.
+          </div>
+        </div>
+
+        <!-- Section 2: Comprehensive Multi-Factor Comparison Table -->
+        <h3 style="font-size: 1.05rem; font-weight: 800; margin-bottom: 14px; margin-top: 24px; display: flex; align-items: center; gap: 8px;">
+          <span>📊 Multi-Dimensional Matrix Comparison</span>
+        </h3>
+        <div class="table-responsive">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>Corridor & Highway</th>
+                <th>Distance</th>
+                <th>Est. Transit Time</th>
+                <th>Traffic Congestion</th>
+                <th>Weather</th>
+                <th>Safety Index</th>
+                <th>Fuel & Cost</th>
+                <th>Smart Score</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="comparisonTableBody">
+              <tr>
+                <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 32px;">
+                  Calculate a route on the Dashboard to compare corridor options.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Section 3: Detailed Corridor Inspector -->
+        <div id="comparisonInspectorContainer" style="margin-top: 28px; display: none;"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: ANALYTICS -->
+    <section id="tab-analytics" class="tab-pane">
+      <div class="hero-header">
+        <h2 class="hero-title" style="font-size: 1.4rem;">
+          <span>📊 Intelligence & Scoring Analytics</span>
+        </h2>
+        <p class="hero-subtitle">Visual multi-criteria trade-off evaluation across routes.</p>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3 style="font-size: 1rem; margin-bottom: 12px;">Multi-Factor Radar Evaluation</h3>
+          <div class="chart-container">
+            <canvas id="radarChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <h3 style="font-size: 1rem; margin-bottom: 12px;">Travel Time vs. Congestion Bottlenecks</h3>
+          <div class="chart-container">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: HISTORY -->
+    <section id="tab-history" class="tab-pane">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h2 class="hero-title" style="font-size: 1.4rem;">
+              <span>🕒 Route Search History</span>
+            </h2>
+            <p class="hero-subtitle">Persistent search repository stored in SQLite.</p>
+          </div>
+          <button class="btn-danger" onclick="clearAllHistory()">Clear All History</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Corridor (Source → Destination)</th>
+                <th>Vehicle</th>
+                <th>Preference</th>
+                <th>Distance & Time</th>
+                <th>Smart Score</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 32px;">
+                  Loading history records...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: SETTINGS -->
+    <section id="tab-settings" class="tab-pane">
+      <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <h2 class="hero-title" style="font-size: 1.4rem; margin-bottom: 8px;">
+          <span>⚙️ System Configuration & Provider Status</span>
+        </h2>
+        <p class="hero-subtitle" style="margin-bottom: 24px;">
+          Manage external map APIs, vehicle defaults, and operational modes.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- API Status Box -->
+          <div style="background: var(--bg-tertiary); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <h4 style="font-size: 0.95rem; margin-bottom: 12px;">Provider Connectivity Dashboard</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.85rem;">
+              <div>
+                <strong>CARTO Basemap Layer:</strong>
+                <div id="statusCarto" style="color: #10B981;">Checking...</div>
+              </div>
+              <div>
+                <strong>Routing Service:</strong>
+                <div id="statusRouting" style="color: #10B981;">Checking...</div>
+              </div>
+              <div>
+                <strong>Weather Service:</strong>
+                <div id="statusWeather" style="color: #10B981;">Checking...</div>
+              </div>
+              <div>
+                <strong>Traffic Engine:</strong>
+                <div id="statusTraffic" style="color: #10B981;">Checking...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Emergency Mode Info Box -->
+          <div style="background: rgba(239, 68, 68, 0.08); padding: 18px; border-radius: var(--radius-md); border: 1px solid rgba(239, 68, 68, 0.3);">
+            <h4 style="font-size: 0.95rem; color: #f87171; margin-bottom: 6px;">🚨 Emergency Prioritization Mode</h4>
+            <p style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5;">
+              When Emergency Mode is activated, the scoring engine assigns 50% weight to minimal travel time,
+              25% to congestion clearance, and 20% to roadway safety, while zeroing out fuel efficiency penalties.
+              Designed for urgent response and time-critical routing optimization.
+            </p>
+          </div>
+
+          <!-- CARTO Attribution & Compliance Note -->
+          <div style="font-size: 0.82rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 16px;">
+            CARTO Basemaps utilized under license. Cartographic tiles &copy; CARTO &copy; OpenStreetMap contributors.
+            Routing calculations performed via decoupled routing engine with resilient corridor generation.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    </div><!-- End of #module-road -->
+
+    <!-- MODULE 2: SMART VISA ROUTE -->
+    <div id="module-visa" style="display: none;">
+
+      <!-- VISA PANE 1: FIND MY BEST COUNTRY (PROFILE MATCHING PIPELINE) -->
+      <section id="visa-tab-recommend" class="visa-pane active">
+        <div class="hero-header">
+          <h1 class="hero-title">
+            <span>🌍 SMART VISA ROUTE — FIND MY BEST COUNTRY</span>
+          </h1>
+          <p class="hero-subtitle">
+            Evaluate your profile against ALL available supported countries dynamically using verified live official data.
+          </p>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- User Profile Form -->
+          <aside class="card">
+            <div class="panel-title">
+              <span>👤 Applicant Profile</span>
+              <span style="font-size: 0.75rem; color: var(--accent-cyan);">All-Country Engine</span>
+            </div>
+
+            <form id="visaProfileForm">
+              <div class="form-group">
+                <label for="vCurrentCountry" class="form-label">📍 Current Country / Passport</label>
+                <input type="text" id="vCurrentCountry" value="India" required />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="vAge" class="form-label">🎂 Age</label>
+                  <input type="number" id="vAge" min="18" max="75" value="28" required />
+                </div>
+                <div class="form-group">
+                  <label for="vExperience" class="form-label">💼 Work Experience (Yrs)</label>
+                  <input type="number" id="vExperience" min="0" max="40" value="4" required />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="vEducation" class="form-label">🎓 Highest Education</label>
+                  <select id="vEducation">
+                    <option value="bachelor" selected>Bachelor's Degree</option>
+                    <option value="master">Master's Degree</option>
+                    <option value="phd">PhD / Doctorate</option>
+                    <option value="diploma">Vocational / Diploma</option>
+                    <option value="high_school">High School</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="vField" class="form-label">🔬 Primary Field</label>
+                  <select id="vField">
+                    <option value="tech" selected>Software & Tech / AI</option>
+                    <option value="healthcare">Healthcare & Medicine</option>
+                    <option value="engineering">Engineering & Architecture</option>
+                    <option value="business">Business & Finance</option>
+                    <option value="hospitality">Hospitality & Tourism</option>
+                    <option value="trade">Skilled Trade / Technician</option>
+                    <option value="other">Other Fields</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="vPurpose" class="form-label">🛂 Visa Purpose</label>
+                <select id="vPurpose">
+                  <option value="Work Visa" selected>🛂 Work Visa / Skilled Employment</option>
+                  <option value="Student Visa">🎓 Student Visa / Higher Education</option>
+                  <option value="Business/Entrepreneur Visa">💼 Business / Startup / Investor</option>
+                  <option value="Digital Nomad Visa">🌐 Digital Nomad / Remote Work</option>
+                  <option value="Residence/Immigration">🏠 Residence / Direct Immigration</option>
+                  <option value="Family Visa">👨‍👩‍👧 Family Reunification</option>
+                  <option value="Visitor/Tourist Visa">✈️ Visitor / Tourist Visa</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="vBudget" class="form-label">💰 Monthly Budget ($ USD)</label>
+                  <input type="number" id="vBudget" step="100" value="2500" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="vLanguage" class="form-label">🗣️ Primary Spoken Language</label>
+                  <select id="vLanguage">
+                    <option value="English" selected>English</option>
+                    <option value="German">German (Deutsch)</option>
+                    <option value="French">French (Français)</option>
+                    <option value="Spanish">Spanish (Español)</option>
+                    <option value="Japanese">Japanese (日本語)</option>
+                    <option value="Portuguese">Portuguese</option>
+                    <option value="Arabic">Arabic</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="vFamily" class="form-label">👨‍👩‍👧 Family Status</label>
+                  <select id="vFamily">
+                    <option value="single" selected>Single (Individual)</option>
+                    <option value="married">Married (Couple)</option>
+                    <option value="married_with_kids">Family with Children</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="vPriority" class="form-label">🎯 Optimization Priority</label>
+                  <select id="vPriority">
+                    <option value="balanced" selected>⚖️ Balanced Multi-Factor</option>
+                    <option value="job">💼 Job Demand & Salary</option>
+                    <option value="visa">🛂 Visa Ease & Speed</option>
+                    <option value="safety">🛡️ Safety & Security</option>
+                    <option value="low_cost">💰 Low Cost & Affordability</option>
+                    <option value="quality">🌿 Quality of Life & Healthcare</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-submit" style="margin-top: 8px;">
+                <span>✨ ANALYZE ALL SUPPORTED COUNTRIES</span>
+              </button>
+            </form>
+
+            <div id="visaRecLoading" class="loading-card" style="display: none; margin-top: 16px;">
+              <div class="loading-header">
+                <div class="spinner"></div>
+                <span>Evaluating entire country database...</span>
+              </div>
+              <div class="loading-stage-text">Filtering criteria, calculating smart score, and ranking...</div>
+            </div>
+          </aside>
+
+          <!-- Introduction & Live Source Badge Panel -->
+          <section class="card">
+            <div class="panel-title">
+              <span>🌐 Live Multi-Factor Immigration Intelligence</span>
+              <button class="btn-refresh-cache" onclick="refreshVisaCache()">
+                <span>🔄 REFRESH LIVE DATA</span>
+              </button>
+            </div>
+
+            <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 16px;">
+              Smart Route AI evaluates your profile across verified global destinations. Every recommendation displays direct official government immigration authority sources, processing parameters, and multi-factor breakdown.
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+              <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border-left: 3px solid #10B981;">
+                <strong style="color: #10B981; display: block; font-size: 0.9rem;">🌍 120+ Global Nations</strong>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Dynamic catalog across Europe, Americas, Asia-Pacific, Middle East & Africa.</span>
+              </div>
+              <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border-left: 3px solid var(--accent-cyan);">
+                <strong style="color: var(--accent-cyan); display: block; font-size: 0.9rem;">🏛️ Verified Official Portals</strong>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Direct links to government immigration authorities for every result.</span>
+              </div>
+              <div style="background: var(--bg-tertiary); padding: 14px; border-radius: var(--radius-md); border-left: 3px solid var(--accent-primary);">
+                <strong style="color: var(--accent-primary); display: block; font-size: 0.9rem;">⚡ 7-Factor Smart Scoring</strong>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Objective weights customized to your selected lifestyle priorities.</span>
+              </div>
+            </div>
+
+            <!-- Mandatory Disclaimer Card -->
+            <div class="visa-disclaimer-card">
+              <span style="font-size: 1.3rem;">ℹ️</span>
+              <div>
+                <strong>Official Compliance & Decision-Support Notice:</strong><br>
+                Visa and immigration information can change. This application provides decision-support information only and does not guarantee visa approval. Always verify current requirements with the relevant official government/immigration authority.
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- RESULTS SECTION (POPULATED AFTER PROFILE SUBMISSION) -->
+        <div id="visaRecResults" style="display: none; margin-top: 32px;">
+          <!-- Evaluation Banner -->
+          <div class="card" style="background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); border-color: rgba(6, 182, 212, 0.3); margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0;">🏆 Analysis Complete</h2>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 4px 0 0 0;">
+                  Successfully evaluated <strong id="evaluatedCountryCount" style="color: var(--accent-cyan);">120+</strong> supported countries against your qualifications and preferences.
+                </p>
+              </div>
+              <span class="badge-mode badge-live">LIVE VERIFIED DATA</span>
+            </div>
+          </div>
+
+          <!-- TOP 3 SPOTLIGHT RECOMMENDATIONS -->
+          <h2 class="hero-title" style="font-size: 1.35rem; margin-bottom: 12px;">
+            <span>⭐ Top 3 Recommended Destinations</span>
+          </h2>
+          <div id="top3CardsContainer" class="top3-cards-grid"></div>
+
+          <!-- TOP 10 DESTINATIONS LEADERBOARD TABLE -->
+          <div class="card" style="margin-top: 32px;">
+            <h2 class="hero-title" style="font-size: 1.35rem; margin-bottom: 8px;">
+              <span>🌍 Top 10 Destinations Ranking</span>
+            </h2>
+            <p class="hero-subtitle" style="margin-bottom: 16px;">
+              Comprehensive ranking generated dynamically from multi-factor analysis across the full country database.
+            </p>
+
+            <div class="table-responsive">
+              <table class="comparison-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Destination</th>
+                    <th>Region</th>
+                    <th>Target Visa Route</th>
+                    <th>Smart Score</th>
+                    <th>Official Authority</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="top10TableBody">
+                  <tr>
+                    <td colspan="7" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                      Submit profile to calculate destination rankings.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VISA PANE 2: ALL COUNTRIES LIVE SEARCH & FILTER -->
+      <section id="visa-tab-all-countries" class="visa-pane">
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+            <div>
+              <h2 class="hero-title" style="font-size: 1.4rem;">
+                <span>🌍 Search & Explore All Supported Countries</span>
+              </h2>
+              <p class="hero-subtitle">
+                Dynamic catalog with live official immigration sources, verified fees, and processing standards.
+              </p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span id="countryCountBadge" class="badge-mode badge-live">Loading catalog...</span>
+              <button id="btnShowAllCountries" class="btn-refresh-cache">
+                <span>🌍 SHOW ALL SUPPORTED COUNTRIES</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; background: var(--bg-tertiary); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="visaSearchInput" class="form-label">🔍 Search Country / Capital</label>
+              <input type="text" id="visaSearchInput" placeholder="Type Germany, Japan, Brazil, Nepal, UAE..." />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="visaFilterRegion" class="form-label">🌍 Region</label>
+              <select id="visaFilterRegion">
+                <option value="All" selected>All Global Regions</option>
+                <option value="Europe">Europe</option>
+                <option value="Americas">Americas</option>
+                <option value="Asia-Pacific">Asia-Pacific</option>
+                <option value="Middle East">Middle East</option>
+                <option value="Africa">Africa</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="visaFilterPurpose" class="form-label">🛂 Visa Category</label>
+              <select id="visaFilterPurpose">
+                <option value="All" selected>All Visa Types</option>
+                <option value="Work Visa">Work Visa</option>
+                <option value="Student Visa">Student Visa</option>
+                <option value="Business/Entrepreneur Visa">Business / Entrepreneur</option>
+                <option value="Digital Nomad Visa">Digital Nomad Visa</option>
+                <option value="Residence/Immigration">Residence / Immigration</option>
+                <option value="Family Visa">Family Visa</option>
+                <option value="Visitor/Tourist Visa">Visitor / Tourist Visa</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="visaFilterSafety" class="form-label">🛡️ Safety Rating</label>
+              <select id="visaFilterSafety">
+                <option value="0" selected>Any Safety Level</option>
+                <option value="75">High (75+)</option>
+                <option value="85">Very High (85+)</option>
+                <option value="90">Ultra Safe (90+)</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="visaFilterLanguage" class="form-label">🗣️ Language</label>
+              <select id="visaFilterLanguage">
+                <option value="Any" selected>Any Language</option>
+                <option value="English">English Friendly</option>
+                <option value="German">German</option>
+                <option value="French">French</option>
+                <option value="Spanish">Spanish</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- All Countries Grid -->
+          <div id="allCountriesGrid" class="country-grid"></div>
+        </div>
+      </section>
+
+      <!-- VISA PANE 3: COUNTRY COMPARISON -->
+      <section id="visa-tab-compare" class="visa-pane">
+        <div class="card">
+          <h2 class="hero-title" style="font-size: 1.4rem; margin-bottom: 8px;">
+            <span>⚖️ Compare Any 3 Supported Countries</span>
+          </h2>
+          <p class="hero-subtitle" style="margin-bottom: 20px;">
+            Select any destination countries across the global catalog to perform a multi-dimensional comparative trade-off analysis.
+          </p>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; background: var(--bg-tertiary); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="compCountry1" class="form-label">Country 1</label>
+              <select id="compCountry1"></select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="compCountry2" class="form-label">Country 2</label>
+              <select id="compCountry2"></select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="compCountry3" class="form-label">Country 3</label>
+              <select id="compCountry3"></select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="compPurpose" class="form-label">Visa Purpose</label>
+              <select id="compPurpose">
+                <option value="Work Visa" selected>Work Visa</option>
+                <option value="Student Visa">Student Visa</option>
+                <option value="Business/Entrepreneur Visa">Business / Entrepreneur</option>
+                <option value="Digital Nomad Visa">Digital Nomad Visa</option>
+                <option value="Residence/Immigration">Residence / Immigration</option>
+                <option value="Family Visa">Family Visa</option>
+                <option value="Visitor/Tourist Visa">Visitor / Tourist Visa</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button id="btnRunComparison" class="btn-primary" style="padding: 10px 24px;">
+              <span>⚖️ COMPARE DESTINATIONS</span>
+            </button>
+          </div>
+
+          <div id="comparisonResultsContainer"></div>
+        </div>
+      </section>
+
+      <!-- VISA PANE 4: VISA DETAILS EXPLORER -->
+      <section id="visa-tab-details" class="visa-pane">
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+            <div>
+              <h2 class="hero-title" style="font-size: 1.4rem;">
+                <span>🛂 Live Visa Details & Official Requirements</span>
+              </h2>
+              <p class="hero-subtitle">
+                Inspect official immigration pathways, processing times, statutory fees, and verified documentation.
+              </p>
+            </div>
+
+            <!-- Country & Category Selectors -->
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <select id="countryDetailSelect" onchange="loadSelectedCountryDetails(this.value)" style="min-width: 220px;"></select>
+              <select id="detailCategorySelect" onchange="loadSelectedCountryDetails()" style="min-width: 200px;">
+                <option value="Work Visa" selected>🛂 Work Visa</option>
+                <option value="Student Visa">🎓 Student Visa</option>
+                <option value="Business/Entrepreneur Visa">💼 Business / Entrepreneur</option>
+                <option value="Digital Nomad Visa">🌐 Digital Nomad Visa</option>
+                <option value="Residence/Immigration">🏠 Residence / Immigration</option>
+                <option value="Family Visa">👨‍👩‍👧 Family Visa</option>
+                <option value="Visitor/Tourist Visa">✈️ Visitor / Tourist Visa</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="countryDetailContent">
+            <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+              Select a country above to load verified immigration parameters.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VISA PANE 5: WHAT-IF SIMULATOR -->
+      <section id="visa-tab-simulator" class="visa-pane">
+        <div class="card">
+          <h2 class="hero-title" style="font-size: 1.4rem; margin-bottom: 8px;">
+            <span>🔮 Real-Time What-If Sensitivity Simulator</span>
+          </h2>
+          <p class="hero-subtitle" style="margin-bottom: 24px;">
+            Adjust your age, work experience, monthly budget, and priorities to see how Smart Scores dynamically adapt in real time.
+          </p>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; background: var(--bg-tertiary); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div>
+              <div style="display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 6px;">
+                <label>🎂 Simulated Age:</label>
+                <span id="simAgeVal" style="color: var(--accent-cyan);">28 years</span>
+              </div>
+              <input type="range" id="simAgeSlider" min="18" max="65" value="28" style="width: 100%;" />
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 6px;">
+                <label>💼 Work Experience:</label>
+                <span id="simExpVal" style="color: var(--accent-cyan);">4 years</span>
+              </div>
+              <input type="range" id="simExpSlider" min="0" max="25" value="4" style="width: 100%;" />
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 6px;">
+                <label>💰 Monthly Budget:</label>
+                <span id="simBudgetVal" style="color: var(--accent-cyan);">$2,500/mo</span>
+              </div>
+              <input type="range" id="simBudgetSlider" min="500" max="10000" step="250" value="2500" style="width: 100%;" />
+            </div>
+
+            <div>
+              <label class="form-label">🎯 Priority Mode:</label>
+              <select id="simPrioritySelect">
+                <option value="balanced" selected>Balanced Mode</option>
+                <option value="job">Job & Salary Maximization</option>
+                <option value="visa">Visa Feasibility & Speed</option>
+                <option value="safety">Safety & Security</option>
+                <option value="low_cost">Low Cost Affordability</option>
+                <option value="quality">Quality of Life</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="simResultsContainer"></div>
+        </div>
+      </section>
+
+    </div><!-- End of #module-visa -->
+
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Application Scripts -->
+  <script src="/static/js/map.js"></script>
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/route.js"></script>
+  <script src="/static/js/history.js"></script>
+  <script src="/static/js/visa.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

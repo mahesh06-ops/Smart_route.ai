@@ -1,0 +1,117 @@
+PROJECT DIAGNOSTIC REPORT - 10/24/2026 19:11:03
+PROJECT ROOT: C:\Users\Admin\Documents\Desktop\s route
+
+--- PYTHON FILES ---
+\app.py
+\check_maptiler.py
+\run.py
+\backend\main.py
+\backend\api\health.py
+\backend\api\history_api.py
+\backend\api\route_api.py
+\backend\api\settings_api.py
+\backend\api\weather_api.py
+\backend\api\__init__.py
+\backend\schemas\request_schema.py
+\backend\schemas\route_schema.py
+\backend\schemas\__init__.py
+\backup_before_maptiler_cleanup_20261024_120909\._backend_api_settings_api.py
+\backup_before_maptiler_cleanup_20261024_121157\backend\api\health.py
+\backup_before_maptiler_cleanup_20261024_121157\backend\api\settings_api.py
+\backup_before_maptiler_cleanup_20261024_121157\src\config\settings.py
+\backup_before_maptiler_cleanup_20261024_121157\src\utils\logging_config.py
+\backup_carto_removal_20261024_121319\backend\api\health.py
+\backup_carto_removal_20261024_121319\backend\api\settings_api.py
+\backup_carto_removal_20261024_121319\src\utils\logging_config.py
+\config\api_config.py
+\config\__init__.py
+\gui\visa_comparison.py
+\gui\visa_details.py
+\gui\visa_route.py
+\gui\visa_search.py
+\gui\visa_simulator.py
+\gui\__init__.py
+\map_provider_backup_20261024_112720\settings_api.py
+\src\config\settings.py
+\src\database\database.py
+\src\database\history_repository.py
+\src\database\models.py
+\src\intelligence\explanation_engine.py
+\src\intelligence\fuel_engine.py
+\src\intelligence\preference_engine.py
+\src\intelligence\route_scoring.py
+\src\intelligence\safety_engine.py
+\src\intelligence\traffic_engine.py
+\src\intelligence\weather_engine.py
+\src\intelligence\__init__.py
+\src\ml\model_scaffold.py
+\src\ml\route_features.py
+\src\ml\__init__.py
+\src\services\geocoding_service.py
+\src\services\routing_service.py
+\src\services\traffic_service.py
+\src\services\weather_service.py
+\src\services\__init__.py
+\src\utils\logging_config.py
+\src\utils\normalization.py
+\src\utils\validation.py
+\tests\test_api.py
+\tests\test_fuel.py
+\tests\test_geocoding.py
+\tests\test_ml.py
+\tests\test_preferences.py
+\tests\test_safety.py
+\tests\test_scoring.py
+\tests\test_visa.py
+\tests\test_weather.py
+\visa\visa_api.py
+\visa\visa_cache.py
+\visa\visa_data_service.py
+\visa\visa_models.py
+\visa\visa_recommendation.py
+\visa\visa_scoring.py
+\visa\__init__.py
+
+--- GIT STATUS ---
+## main...origin/main
+ M .env.example
+ M README.md
+ M backend/api/health.py
+ M backend/api/settings_api.py
+ M frontend/css/dashboard.css
+ M frontend/index.html
+ M frontend/js/app.js
+ M frontend/js/map.js
+ M frontend/js/route.js
+ M frontend/js/visa.js
+ M src/config/settings.py
+ M src/services/routing_service.py
+ M src/utils/logging_config.py
+ M tests/test_api.py
+?? .env.backup_20261024
+?? .env.backup_before_carto_removal
+?? .env.backup_before_map_key_fix
+?? MAPTILER_DIAGNOSTIC.txt
+?? MAP_VISIBILITY_REPORT.txt
+?? PROJECT_DIAGNOSTIC_REPORT.txt
+?? SMARTROUTE_DIAGNOSTIC.txt
+?? backup_before_maptiler_cleanup_20261024_120909/
+?? backup_before_maptiler_cleanup_20261024_121157/
+?? backup_carto_removal_20261024_121319/
+?? cache/
+?? check_maptiler.py
+?? frontend/index.html.backup_20261024_114937
+?? frontend/index.html.backup_before_carto_removal
+?? map_provider_backup_20261024_112720/
+?? maptiler_cleanup_diagnostic.txt
+?? maptiler_only_cleanup.txt
+?? maptiler_remaining_files.txt
+?? src/config/settings.py.backup_20261024_121656
+?? src/config/settings.py.bak_20261024_122037
+?? tests/test_api.py.bak_20261024_122037
+
+--- PYTHON VERSION ---
+Python 3.13.0
+
+--- NODE VERSION ---
+v22.23.2

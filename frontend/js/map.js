@@ -1,286 +1,685 @@
+
 /**
  * Map Integration Engine for Smart Route AI
- * Uses Leaflet + CARTO Basemap layer (Dark Matter / Positron / Voyager)
- * Preserves required CARTO & OpenStreetMap attribution.
+ * Uses MapLibre GL JS with MapTiler vector styles.
  */
 
 let mapInstance = null;
-let currentTileLayer = null;
-let currentMapStyle = "voyager";
-let routeLayers = [];
-let markerLayers = [];
+let mapApiKey = "";
+let currentMapStyle = "streets";
+let mapStyleLoaded = false;
+let currentRouteData = null;
+let routeBounds = null;
+let routeMarkers = [];
+let routeLayersData = [];
+let selectedRouteId = null;
+let routePopup = null;
+let mapErrorReported = false;
+let routeClickHandlersRegistered = false;
 
-const MAP_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImRmNGE0MGIwNzI0YjRhYjViOTA3YmIzMWE5NmNmNjc1IiwiaCI6Im11cm11cjY0In0=";
-const CARTO_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>';
-
-const BASEMAP_CONFIGS = {
-  voyager: {
-    name: "CARTO Voyager (Ultra Clear)",
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution: CARTO_ATTRIBUTION,
-    subdomains: "abcd",
-    maxZoom: 20,
-  },
-  dark: {
-    name: "CARTO Dark Matter",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: CARTO_ATTRIBUTION,
-    subdomains: "abcd",
-    maxZoom: 20,
-  },
-  light: {
-    name: "CARTO Positron Light",
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution: CARTO_ATTRIBUTION,
-    subdomains: "abcd",
-    maxZoom: 20,
-  },
-  osm: {
-    name: "OpenStreetMap High-Res",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
-    subdomains: "abc",
-    maxZoom: 19,
-  },
+const MAPTILER_STYLES = {
+  hybrid: "hybrid",
+  streets: "streets-v2",
+  dark: "dataviz-dark",
+  light: "basic-v2",
 };
 
-/**
- * Initializes the Leaflet map with CARTO Basemap (defaults to ultra-clear Voyager)
- */
-function initMap(initialStyle = "voyager") {
-  if (mapInstance) return;
+const ROUTES_SOURCE_ID = "smart-routes";
+const ROUTE_GLOW_LAYER_ID = "smart-route-glow";
+const ROUTE_ALTERNATIVE_LAYER_ID = "smart-route-alternatives";
+const ROUTE_RECOMMENDED_LAYER_ID = "smart-route-recommended";
 
-  // Default centered near Karnataka / Deccan Hub (Ballari - Bengaluru corridor)
-  mapInstance = L.map("map", {
-    center: [14.5, 77.0],
+const MAP_STYLE_ERROR =
+  "Map style failed to load. Check the MapTiler API key and network connection.";
+
+/**
+ * Initializes the MapLibre map with the MapTiler Streets v2 style by default.
+ */
+function initMap(apiKey = mapApiKey, initialStyle = "streets") {
+  if (mapInstance) return mapInstance;
+
+  mapApiKey = typeof apiKey === "string" ? apiKey.trim() : "";
+
+  if (!mapApiKey) {
+    showMapStatus(
+      "Configure MAPTILER_API_KEY in .env and restart the app to load the map."
+    );
+    return null;
+  }
+
+  if (typeof maplibregl === "undefined") {
+    showMapStatus(
+      "MapLibre GL JS could not be loaded. Check the network connection and refresh."
+    );
+    return null;
+  }
+
+  currentMapStyle = MAPTILER_STYLES[initialStyle]
+    ? initialStyle
+    : "streets";
+
+  mapInstance = new maplibregl.Map({
+    container: "map",
+    style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${encodeURIComponent(mapApiKey)}`,
+    center: [77.0, 14.5],
     zoom: 7,
-    zoomControl: false,
-    preferCanvas: true,
+    attributionControl: true,
   });
 
-  // Add zoom control to top-right
-  L.control.zoom({ position: "topright" }).addTo(mapInstance);
+  mapInstance.addControl(
+    new maplibregl.NavigationControl(),
+    "top-right"
+  );
 
-  // Set initial ultra-clear basemap
-  setMapBasemap(initialStyle);
+  mapInstance.on("style.load", () => {
+    mapStyleLoaded = true;
+    mapErrorReported = false;
+    hideMapStatus();
+
+    if (currentRouteData) {
+      renderRouteOverlays();
+    }
+  });
+
+  mapInstance.on("error", (event) => {
+    if (!mapStyleLoaded && !mapErrorReported) {
+      mapErrorReported = true;
+      showMapStatus(MAP_STYLE_ERROR);
+
+      console.error(
+        "MapTiler map error:",
+        event && event.error ? event.error.message : MAP_STYLE_ERROR
+      );
+    }
+  });
+
+  syncMapStyleSelect();
+
+  return mapInstance;
 }
 
 /**
- * Sets the active Basemap style with Retina @2x high-resolution support
+ * Creates the MapTiler style URL using the configured API key.
+ */
+function getMapStyleUrl(styleName) {
+  const styleId =
+    MAPTILER_STYLES[styleName] || MAPTILER_STYLES.streets;
+
+  return `https://api.maptiler.com/maps/${styleId}/style.json?key=${encodeURIComponent(mapApiKey)}`;
+}
+
+function showMapStatus(message) {
+  const container = document.getElementById("map");
+  if (!container) return;
+
+  let status = container.querySelector(".map-status-message");
+
+  if (!status) {
+    status = document.createElement("div");
+    status.className = "map-status-message";
+    status.setAttribute("role", "status");
+    container.appendChild(status);
+  }
+
+  status.textContent = message;
+}
+
+function hideMapStatus() {
+  const status = document.querySelector(
+    "#map .map-status-message"
+  );
+
+  if (status) status.remove();
+}
+
+function syncMapStyleSelect() {
+  const styleSelect = document.getElementById("mapStyleSelect");
+
+  if (styleSelect && styleSelect.value !== currentMapStyle) {
+    styleSelect.value = currentMapStyle;
+  }
+}
+
+/**
+ * Changes the active MapTiler vector style.
  */
 function setMapBasemap(styleName) {
-  if (!mapInstance) return;
+  const nextStyle = MAPTILER_STYLES[styleName]
+    ? styleName
+    : "streets";
 
-  const config = BASEMAP_CONFIGS[styleName] || BASEMAP_CONFIGS.voyager;
-  currentMapStyle = styleName;
+  const styleChanged = nextStyle !== currentMapStyle;
 
-  if (currentTileLayer) {
-    mapInstance.removeLayer(currentTileLayer);
+  currentMapStyle = nextStyle;
+  syncMapStyleSelect();
+
+  if (!mapInstance || !styleChanged) {
+    return;
   }
 
-  currentTileLayer = L.tileLayer(config.url, {
-    attribution: config.attribution,
-    subdomains: config.subdomains,
-    maxZoom: config.maxZoom,
-    detectRetina: true,
-    tileSize: 256,
-  }).addTo(mapInstance);
+  mapStyleLoaded = false;
+  mapErrorReported = false;
 
-  // Sync select element if present
-  const styleSelect = document.getElementById("mapStyleSelect");
-  if (styleSelect && styleSelect.value !== styleName) {
-    styleSelect.value = styleName;
-  }
+  mapInstance.setStyle(getMapStyleUrl(nextStyle));
 }
 
 /**
- * Updates the CARTO basemap style (backward compatible)
+ * Updates the MapTiler style for the existing light/dark theme toggle.
  */
 function updateMapBasemap(styleName) {
-  setMapBasemap(styleName);
+  setMapBasemap(
+    styleName === "light"
+      ? "light"
+      : styleName === "dark"
+        ? "dark"
+        : "streets"
+  );
 }
 
-let routeLayersData = [];
+function removeRenderedOverlays() {
+  if (mapInstance) {
+    [
+      ROUTE_RECOMMENDED_LAYER_ID,
+      ROUTE_ALTERNATIVE_LAYER_ID,
+      ROUTE_GLOW_LAYER_ID,
+    ].forEach((layerId) => {
+      if (mapStyleLoaded && mapInstance.getLayer(layerId)) {
+        mapInstance.removeLayer(layerId);
+      }
+    });
+
+    if (
+      mapStyleLoaded &&
+      mapInstance.getSource(ROUTES_SOURCE_ID)
+    ) {
+      mapInstance.removeSource(ROUTES_SOURCE_ID);
+    }
+  }
+
+  routeMarkers.forEach((marker) => marker.remove());
+  routeMarkers = [];
+  routeLayersData = [];
+  routeBounds = null;
+
+  if (routePopup) {
+    routePopup.remove();
+    routePopup = null;
+  }
+}
 
 /**
- * Clears existing route polylines and location markers
+ * Clears the current route geometry and location markers.
  */
 function clearMapOverlays() {
-  if (!mapInstance) return;
-  routeLayers.forEach((l) => mapInstance.removeLayer(l));
-  markerLayers.forEach((m) => mapInstance.removeLayer(m));
-  routeLayers = [];
-  markerLayers = [];
-  routeLayersData = [];
+  removeRenderedOverlays();
+  currentRouteData = null;
+  selectedRouteId = null;
 }
 
-/**
- * Creates custom glowing SVG icons for Start and Destination
- */
+function escapeMapHtml(value) {
+  return String(value == null ? "" : value).replace(
+    /[&<>"']/g,
+    (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+
+      return replacements[character];
+    }
+  );
+}
+
 function createCustomMarker(type) {
   const isStart = type === "start";
-  const color = isStart ? "#10B981" : "#EF4444";
-  const symbol = isStart ? "📍" : "🏁";
+  const marker = document.createElement("div");
 
-  return L.divIcon({
-    className: "custom-map-marker",
-    html: `
-      <div style="
-        background: ${color};
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        box-shadow: 0 0 16px ${color};
-        border: 2px solid #ffffff;
-        cursor: pointer;
-      ">
-        ${symbol}
+  marker.className = `custom-map-marker ${
+    isStart ? "start-marker" : "destination-marker"
+  }`;
+
+  marker.setAttribute(
+    "aria-label",
+    isStart ? "Route start" : "Route destination"
+  );
+
+  marker.textContent = isStart ? "📍" : "🏁";
+
+  return marker;
+}
+
+function validLatLon(latitude, longitude) {
+  return (
+    Number.isFinite(Number(latitude)) &&
+    Number.isFinite(Number(longitude))
+  );
+}
+
+function getRoutePopupHtml(route, color) {
+  const traffic = route.traffic || {};
+  const safety = route.safety || {};
+  const fuel = route.fuel || {};
+  const routeName = escapeMapHtml(route.route_name);
+
+  return `
+    <div class="route-map-popup">
+      <div class="route-map-popup-title" style="color: ${color}">
+        ${routeName}${route.is_recommended ? " 🏆 (Recommended)" : ""}
       </div>
-    `,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
-    popupAnchor: [0, -20],
+      <div class="route-map-popup-summary">
+        ${escapeMapHtml(route.via_summary || "")}
+      </div>
+      <div><b>Smart Score:</b> ${Math.round(Number(route.smart_score) || 0)}/100</div>
+      <div><b>Distance:</b> ${escapeMapHtml(route.distance_km)} km</div>
+      <div><b>Duration:</b> ${Math.round(Number(route.duration_minutes) || 0)} mins</div>
+      <div><b>Traffic:</b> ${escapeMapHtml(traffic.level)} (${escapeMapHtml(traffic.score)}/100)</div>
+      <div><b>Safety:</b> ${escapeMapHtml(safety.score)}/100 (${escapeMapHtml(safety.category || "High")})</div>
+      <div><b>Fuel:</b> ${escapeMapHtml(fuel.fuel_liters)} L (~₹${Math.round(Number(fuel.fuel_cost) || 0)})</div>
+    </div>
+  `;
+}
+
+function getRoutePaint(property, selectedValue, defaultValue) {
+  const selectedRoute = [
+    "==",
+    ["get", "routeId"],
+    selectedRouteId,
+  ];
+
+  const isSelected = selectedRouteId !== null;
+
+  if (property === "line-color") {
+    return [
+      "case",
+      selectedRoute,
+      selectedValue,
+      isSelected ? "#64748B" : defaultValue,
+    ];
+  }
+
+  if (property === "line-width") {
+    return [
+      "case",
+      selectedRoute,
+      selectedValue,
+      isSelected ? 3.5 : defaultValue,
+    ];
+  }
+
+  return [
+    "case",
+    selectedRoute,
+    selectedValue,
+    isSelected ? 0.4 : defaultValue,
+  ];
+}
+
+function applyRouteHighlightStyle() {
+  if (!mapInstance || !mapStyleLoaded) return;
+
+  [
+    ROUTE_ALTERNATIVE_LAYER_ID,
+    ROUTE_RECOMMENDED_LAYER_ID,
+  ].forEach((layerId) => {
+    if (!mapInstance.getLayer(layerId)) return;
+
+    mapInstance.setPaintProperty(
+      layerId,
+      "line-color",
+      getRoutePaint("line-color", "#10B981", ["get", "color"])
+    );
+
+    mapInstance.setPaintProperty(
+      layerId,
+      "line-width",
+      getRoutePaint("line-width", 7, ["get", "weight"])
+    );
+
+    mapInstance.setPaintProperty(
+      layerId,
+      "line-opacity",
+      getRoutePaint("line-opacity", 1, ["get", "opacity"])
+    );
   });
 }
 
-/**
- * Renders calculated routes and start/destination markers on map
- */
-function renderRoutesOnMap(routeData) {
-  if (!mapInstance) initMap();
-  clearMapOverlays();
+function registerRouteClickHandlers() {
+  if (routeClickHandlersRegistered) return;
 
-  const source = routeData.source;
-  const destination = routeData.destination;
-  const routes = routeData.routes || [];
+  const layerIds = [
+    ROUTE_ALTERNATIVE_LAYER_ID,
+    ROUTE_RECOMMENDED_LAYER_ID,
+  ];
 
-  // Add Source Marker
-  const startMarker = L.marker([source.lat, source.lon], {
-    icon: createCustomMarker("start"),
-  })
-    .addTo(mapInstance)
-    .bindPopup(`<b>Source:</b><br>${source.display_name}`);
-  markerLayers.push(startMarker);
+  mapInstance.on("click", layerIds, (event) => {
+    const feature = event.features && event.features[0];
+    if (!feature) return;
 
-  // Add Destination Marker
-  const destMarker = L.marker([destination.lat, destination.lon], {
-    icon: createCustomMarker("destination"),
-  })
-    .addTo(mapInstance)
-    .bindPopup(`<b>Destination:</b><br>${destination.display_name}`);
-  markerLayers.push(destMarker);
+    routePopup = new maplibregl.Popup({
+      closeButton: true,
+      offset: 10,
+    })
+      .setLngLat(event.lngLat)
+      .setHTML(feature.properties.popupHtml)
+      .addTo(mapInstance);
+  });
 
-  const bounds = L.latLngBounds([
-    [source.lat, source.lon],
-    [destination.lat, destination.lon],
+  mapInstance.on("mouseenter", layerIds, () => {
+    mapInstance.getCanvas().style.cursor = "pointer";
+  });
+
+  mapInstance.on("mouseleave", layerIds, () => {
+    mapInstance.getCanvas().style.cursor = "";
+  });
+
+  routeClickHandlersRegistered = true;
+}
+
+function addRouteMarkers(source, destination) {
+  if (
+    !validLatLon(source.lat, source.lon) ||
+    !validLatLon(destination.lat, destination.lon)
+  ) {
+    return;
+  }
+
+  const markerConfigs = [
+    {
+      type: "start",
+      place: source,
+      label: "Source",
+    },
+    {
+      type: "destination",
+      place: destination,
+      label: "Destination",
+    },
+  ];
+
+  markerConfigs.forEach(({ type, place, label }) => {
+    const popup = new maplibregl.Popup({ offset: 22 }).setHTML(
+      `<b>${label}:</b><br>${escapeMapHtml(place.display_name)}`
+    );
+
+    const marker = new maplibregl.Marker({
+      element: createCustomMarker(type),
+      anchor: "center",
+    })
+      .setLngLat([
+        Number(place.lon),
+        Number(place.lat),
+      ])
+      .setPopup(popup)
+      .addTo(mapInstance);
+
+    routeMarkers.push(marker);
+  });
+}
+
+function renderRouteOverlays() {
+  if (
+    !mapInstance ||
+    !mapStyleLoaded ||
+    !currentRouteData
+  ) {
+    return;
+  }
+
+  removeRenderedOverlays();
+
+  const { source, destination } = currentRouteData;
+
+  if (
+    !source ||
+    !destination ||
+    !validLatLon(source.lat, source.lon) ||
+    !validLatLon(destination.lat, destination.lon)
+  ) {
+    console.error(
+      "Route map data is missing valid source or destination coordinates."
+    );
+    return;
+  }
+
+  routeBounds = new maplibregl.LngLatBounds();
+
+  routeBounds.extend([
+    Number(source.lon),
+    Number(source.lat),
   ]);
 
-  // Color scheme: Recommended = Glowing Emerald/Cyan, Alts = Amber, Purple, Cyan
-  const altColors = ["#F59E0B", "#8B5CF6", "#06B6D4"];
+  routeBounds.extend([
+    Number(destination.lon),
+    Number(destination.lat),
+  ]);
 
-  // Render Alternative routes first so Recommended sits visibly on top
-  const sortedForRendering = [...routes].reverse();
+  addRouteMarkers(source, destination);
 
-  sortedForRendering.forEach((route) => {
-    const isRec = route.is_recommended;
-    const coords = route.coordinates;
+  const alternativeColors = [
+    "#F59E0B",
+    "#8B5CF6",
+    "#06B6D4",
+  ];
 
-    if (!coords || coords.length === 0) return;
+  const routes = [
+    ...(currentRouteData.routes || []),
+  ].reverse();
 
-    coords.forEach((pt) => bounds.extend(pt));
+  const features = [];
 
-    const color = isRec ? "#10B981" : altColors[(route.rank - 2) % altColors.length] || "#94A3B8";
-    const weight = isRec ? 6 : 4;
-    const opacity = isRec ? 0.95 : 0.65;
-    const dashArray = isRec ? null : "6, 8";
-
-    // Glow background line for recommended route
-    let glowLine = null;
-    if (isRec) {
-      glowLine = L.polyline(coords, {
-        color: "#10B981",
-        weight: 12,
-        opacity: 0.25,
-      }).addTo(mapInstance);
-      routeLayers.push(glowLine);
+  routes.forEach((route) => {
+    if (
+      !Array.isArray(route.coordinates) ||
+      route.coordinates.length === 0
+    ) {
+      return;
     }
 
-    const polyline = L.polyline(coords, {
-      color: color,
-      weight: weight,
-      opacity: opacity,
-      dashArray: dashArray,
-    }).addTo(mapInstance);
+    const coordinates = route.coordinates
+      .filter(
+        (point) =>
+          Array.isArray(point) &&
+          validLatLon(point[0], point[1])
+      )
+      .map(([latitude, longitude]) => [
+        Number(longitude),
+        Number(latitude),
+      ]);
 
-    const popupHtml = `
-      <div style="font-family: inherit; font-size: 13px; line-height: 1.5; color: #111;">
-        <div style="font-weight: 800; font-size: 14px; margin-bottom: 4px; color: ${color}">
-          ${route.route_name} ${isRec ? "🏆 (Recommended)" : ""}
-        </div>
-        <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">${route.via_summary || ""}</div>
-        <div><b>Smart Score:</b> <span style="font-size: 15px; font-weight: 800; color: #059669">${Math.round(route.smart_score)}/100</span></div>
-        <div><b>Distance:</b> ${route.distance_km} km</div>
-        <div><b>Duration:</b> ${Math.round(route.duration_minutes)} mins</div>
-        <div><b>Traffic:</b> ${route.traffic.level} (${route.traffic.score}/100)</div>
-        <div><b>Safety:</b> ${route.safety.score}/100 (${route.safety.category || 'High'})</div>
-        <div><b>Fuel:</b> ${route.fuel.fuel_liters} L (~₹${Math.round(route.fuel.fuel_cost)})</div>
-      </div>
-    `;
+    if (coordinates.length === 0) return;
 
-    polyline.bindPopup(popupHtml);
-    routeLayers.push(polyline);
+    coordinates.forEach((coordinate) => {
+      routeBounds.extend(coordinate);
+    });
+
+    const isRecommended = Boolean(route.is_recommended);
+
+    const color = isRecommended
+      ? "#10B981"
+      : alternativeColors[
+          (Number(route.rank) - 2) % alternativeColors.length
+        ] || "#94A3B8";
+
+    const popupHtml = getRoutePopupHtml(route, color);
+
+    const feature = {
+      type: "Feature",
+      properties: {
+        routeId: String(route.route_id),
+        isRecommended,
+        color,
+        weight: isRecommended ? 6 : 4,
+        opacity: isRecommended ? 0.95 : 0.65,
+        popupHtml,
+      },
+      geometry: {
+        type: "LineString",
+        coordinates,
+      },
+    };
+
+    features.push(feature);
 
     routeLayersData.push({
-      routeId: route.route_id,
-      polyline: polyline,
-      glowLine: glowLine,
-      baseColor: color,
-      coords: coords,
-      isRec: isRec,
+      routeId: String(route.route_id),
+      coordinates,
+      popupHtml,
     });
   });
 
-  // Fit map to contain entire route with padding
-  mapInstance.fitBounds(bounds, { padding: [50, 50] });
+  mapInstance.addSource(ROUTES_SOURCE_ID, {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features,
+    },
+  });
+
+  mapInstance.addLayer({
+    id: ROUTE_GLOW_LAYER_ID,
+    type: "line",
+    source: ROUTES_SOURCE_ID,
+    filter: ["==", ["get", "isRecommended"], true],
+    layout: {
+      "line-cap": "round",
+      "line-join": "round",
+    },
+    paint: {
+      "line-color": "#10B981",
+      "line-width": 12,
+      "line-opacity": 0.25,
+    },
+  });
+
+  mapInstance.addLayer({
+    id: ROUTE_ALTERNATIVE_LAYER_ID,
+    type: "line",
+    source: ROUTES_SOURCE_ID,
+    filter: ["==", ["get", "isRecommended"], false],
+    layout: {
+      "line-cap": "round",
+      "line-join": "round",
+      "line-dasharray": [2, 2],
+    },
+    paint: {
+      "line-color": ["get", "color"],
+      "line-width": ["get", "weight"],
+      "line-opacity": ["get", "opacity"],
+    },
+  });
+
+  mapInstance.addLayer({
+    id: ROUTE_RECOMMENDED_LAYER_ID,
+    type: "line",
+    source: ROUTES_SOURCE_ID,
+    filter: ["==", ["get", "isRecommended"], true],
+    layout: {
+      "line-cap": "round",
+      "line-join": "round",
+    },
+    paint: {
+      "line-color": ["get", "color"],
+      "line-width": ["get", "weight"],
+      "line-opacity": ["get", "opacity"],
+    },
+  });
+
+  registerRouteClickHandlers();
+  applyRouteHighlightStyle();
+
+  if (!routeBounds.isEmpty()) {
+    mapInstance.fitBounds(routeBounds, {
+      padding: 50,
+      maxZoom: 15,
+    });
+  }
+
+  if (selectedRouteId) {
+    openSelectedRoutePopup();
+  }
 }
 
 /**
- * Focuses and highlights a specific route on the map
+ * Renders calculated routes and start/destination markers on the map.
+ * Route data is retained until the style is ready.
+ */
+function renderRoutesOnMap(routeData) {
+  currentRouteData = routeData;
+  selectedRouteId = null;
+
+  if (!mapInstance) {
+    initMap(mapApiKey);
+  }
+
+  if (mapStyleLoaded) {
+    renderRouteOverlays();
+  }
+}
+
+function openSelectedRoutePopup() {
+  const route = routeLayersData.find(
+    (item) => item.routeId === selectedRouteId
+  );
+
+  if (!route || !route.coordinates.length) return;
+
+  const midpoint =
+    route.coordinates[
+      Math.floor(route.coordinates.length / 2)
+    ];
+
+  if (routePopup) routePopup.remove();
+
+  routePopup = new maplibregl.Popup({
+    closeButton: true,
+    offset: 10,
+  })
+    .setLngLat(midpoint)
+    .setHTML(route.popupHtml)
+    .addTo(mapInstance);
+}
+
+/**
+ * Focuses and highlights a specific route on the map.
  */
 function highlightRouteOnMap(routeId) {
-  if (!mapInstance || routeLayersData.length === 0) return;
+  const targetRouteId = String(routeId);
 
-  routeLayersData.forEach((item) => {
-    if (item.routeId === routeId) {
-      item.polyline.setStyle({
-        color: "#10B981",
-        weight: 7,
-        opacity: 1.0,
-        dashArray: null,
-      });
-      item.polyline.bringToFront();
-      item.polyline.openPopup();
-    } else {
-      item.polyline.setStyle({
-        color: "#64748B",
-        weight: 3.5,
-        opacity: 0.4,
-        dashArray: "6, 8",
-      });
-    }
-  });
+  if (
+    !currentRouteData ||
+    !(currentRouteData.routes || []).some(
+      (route) => String(route.route_id) === targetRouteId
+    )
+  ) {
+    return;
+  }
+
+  selectedRouteId = targetRouteId;
+  applyRouteHighlightStyle();
+
+  if (mapStyleLoaded) {
+    openSelectedRoutePopup();
+  }
 }
 
 /**
- * Re-centers map to bounds of current route
+ * Re-centers the map to the bounds of the current route and markers.
  */
 function recenterMap() {
-  if (!mapInstance || routeLayers.length === 0) return;
-  const group = new L.featureGroup([...routeLayers, ...markerLayers]);
-  mapInstance.fitBounds(group.getBounds(), { padding: [40, 40] });
-}
+  if (
+    !mapInstance ||
+    !mapStyleLoaded ||
+    !routeBounds ||
+    routeBounds.isEmpty()
+  ) {
+    return;
+  }
 
+  mapInstance.fitBounds(routeBounds, {
+    padding: 40,
+    maxZoom: 15,
+  });
+}
