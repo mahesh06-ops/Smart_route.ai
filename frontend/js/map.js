@@ -1,4 +1,3 @@
-
 /**
  * Map Integration Engine for Smart Route AI
  * Uses MapLibre GL JS with MapTiler vector styles.
@@ -30,10 +29,10 @@ const ROUTE_ALTERNATIVE_LAYER_ID = "smart-route-alternatives";
 const ROUTE_RECOMMENDED_LAYER_ID = "smart-route-recommended";
 
 const MAP_STYLE_ERROR =
-  "Map style failed to load. Check the MapTiler API key and network connection.";
+  "Map style failed to load. Check the MapTiler API key, its allowed origins, and your network connection.";
 
 /**
- * Initializes the MapLibre map with the MapTiler Streets v2 style by default.
+ * Initializes the MapLibre map (MapTiler Streets v2 by default).
  */
 function initMap(apiKey = mapApiKey, initialStyle = "streets") {
   if (mapInstance) return mapInstance;
@@ -54,22 +53,18 @@ function initMap(apiKey = mapApiKey, initialStyle = "streets") {
     return null;
   }
 
-  currentMapStyle = MAPTILER_STYLES[initialStyle]
-    ? initialStyle
-    : "streets";
+  currentMapStyle = MAPTILER_STYLES[initialStyle] ? initialStyle : "streets";
 
   mapInstance = new maplibregl.Map({
     container: "map",
-    style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${encodeURIComponent(mapApiKey)}`,
+    // FIX: use the helper so the chosen style is respected
+    style: getMapStyleUrl(currentMapStyle),
     center: [77.0, 14.5],
     zoom: 7,
     attributionControl: true,
   });
 
-  mapInstance.addControl(
-    new maplibregl.NavigationControl(),
-    "top-right"
-  );
+  mapInstance.addControl(new maplibregl.NavigationControl(), "top-right");
 
   mapInstance.on("style.load", () => {
     mapStyleLoaded = true;
@@ -84,11 +79,23 @@ function initMap(apiKey = mapApiKey, initialStyle = "streets") {
   mapInstance.on("error", (event) => {
     if (!mapStyleLoaded && !mapErrorReported) {
       mapErrorReported = true;
-      showMapStatus(MAP_STYLE_ERROR);
+      const err = event && event.error;
+      const status = err && err.status;
+      const msg = (err && err.message) || "";
+      let userMsg = MAP_STYLE_ERROR;
+
+      if (status === 403 || msg.includes("403") || msg.toLowerCase().includes("restricted")) {
+        userMsg = "MapTiler returned HTTP 403 (Key usage restricted). Please add http://127.0.0.1:8000 and http://localhost:8000 to Allowed Origins in your MapTiler Cloud account.";
+      } else if (status === 401 || msg.includes("401")) {
+        userMsg = "MapTiler returned HTTP 401 (Unauthorized). Check MAPTILER_API_KEY in .env.";
+      }
+
+      showMapStatus(userMsg);
 
       console.error(
         "MapTiler map error:",
-        event && event.error ? event.error.message : MAP_STYLE_ERROR
+        userMsg,
+        err
       );
     }
   });
@@ -102,8 +109,7 @@ function initMap(apiKey = mapApiKey, initialStyle = "streets") {
  * Creates the MapTiler style URL using the configured API key.
  */
 function getMapStyleUrl(styleName) {
-  const styleId =
-    MAPTILER_STYLES[styleName] || MAPTILER_STYLES.streets;
+  const styleId = MAPTILER_STYLES[styleName] || MAPTILER_STYLES.streets;
 
   return `https://api.maptiler.com/maps/${styleId}/style.json?key=${encodeURIComponent(mapApiKey)}`;
 }
@@ -125,10 +131,7 @@ function showMapStatus(message) {
 }
 
 function hideMapStatus() {
-  const status = document.querySelector(
-    "#map .map-status-message"
-  );
-
+  const status = document.querySelector("#map .map-status-message");
   if (status) status.remove();
 }
 
@@ -144,10 +147,7 @@ function syncMapStyleSelect() {
  * Changes the active MapTiler vector style.
  */
 function setMapBasemap(styleName) {
-  const nextStyle = MAPTILER_STYLES[styleName]
-    ? styleName
-    : "streets";
-
+  const nextStyle = MAPTILER_STYLES[styleName] ? styleName : "streets";
   const styleChanged = nextStyle !== currentMapStyle;
 
   currentMapStyle = nextStyle;
@@ -164,34 +164,27 @@ function setMapBasemap(styleName) {
 }
 
 /**
- * Updates the MapTiler style for the existing light/dark theme toggle.
+ * Updates the MapTiler style for the light/dark theme toggle.
  */
 function updateMapBasemap(styleName) {
   setMapBasemap(
-    styleName === "light"
-      ? "light"
-      : styleName === "dark"
-        ? "dark"
-        : "streets"
+    styleName === "light" ? "light" : styleName === "dark" ? "dark" : "streets"
   );
 }
 
 function removeRenderedOverlays() {
-  if (mapInstance) {
+  if (mapInstance && mapStyleLoaded) {
     [
       ROUTE_RECOMMENDED_LAYER_ID,
       ROUTE_ALTERNATIVE_LAYER_ID,
       ROUTE_GLOW_LAYER_ID,
     ].forEach((layerId) => {
-      if (mapStyleLoaded && mapInstance.getLayer(layerId)) {
+      if (mapInstance.getLayer(layerId)) {
         mapInstance.removeLayer(layerId);
       }
     });
 
-    if (
-      mapStyleLoaded &&
-      mapInstance.getSource(ROUTES_SOURCE_ID)
-    ) {
+    if (mapInstance.getSource(ROUTES_SOURCE_ID)) {
       mapInstance.removeSource(ROUTES_SOURCE_ID);
     }
   }
@@ -217,20 +210,17 @@ function clearMapOverlays() {
 }
 
 function escapeMapHtml(value) {
-  return String(value == null ? "" : value).replace(
-    /[&<>"']/g,
-    (character) => {
-      const replacements = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
+  return String(value == null ? "" : value).replace(/[&<>"']/g, (character) => {
+    const replacements = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
 
-      return replacements[character];
-    }
-  );
+    return replacements[character];
+  });
 }
 
 function createCustomMarker(type) {
@@ -253,6 +243,10 @@ function createCustomMarker(type) {
 
 function validLatLon(latitude, longitude) {
   return (
+    latitude !== null &&
+    longitude !== null &&
+    latitude !== "" &&
+    longitude !== "" &&
     Number.isFinite(Number(latitude)) &&
     Number.isFinite(Number(longitude))
   );
@@ -263,19 +257,21 @@ function getRoutePopupHtml(route, color) {
   const safety = route.safety || {};
   const fuel = route.fuel || {};
   const routeName = escapeMapHtml(route.route_name);
+  const isSimulated = !route.is_live_route || route.is_estimated_route;
 
   return `
     <div class="route-map-popup">
       <div class="route-map-popup-title" style="color: ${color}">
         ${routeName}${route.is_recommended ? " 🏆 (Recommended)" : ""}
       </div>
+      ${isSimulated ? '<div style="margin: 3px 0;"><span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold;">⚠️ Simulated route</span></div>' : ''}
       <div class="route-map-popup-summary">
         ${escapeMapHtml(route.via_summary || "")}
       </div>
       <div><b>Smart Score:</b> ${Math.round(Number(route.smart_score) || 0)}/100</div>
       <div><b>Distance:</b> ${escapeMapHtml(route.distance_km)} km</div>
       <div><b>Duration:</b> ${Math.round(Number(route.duration_minutes) || 0)} mins</div>
-      <div><b>Traffic:</b> ${escapeMapHtml(traffic.level)} (${escapeMapHtml(traffic.score)}/100)</div>
+      <div><b>Traffic:</b> ${escapeMapHtml(traffic.level)} (${escapeMapHtml(traffic.score)}/100) ${traffic.is_live ? '<span style="color: #10B981; font-size: 10px; font-weight: 700;">(Live)</span>' : '<span style="color: #f59e0b; font-size: 10px; font-weight: 700;">(Simulated)</span>'}</div>
       <div><b>Safety:</b> ${escapeMapHtml(safety.score)}/100 (${escapeMapHtml(safety.category || "High")})</div>
       <div><b>Fuel:</b> ${escapeMapHtml(fuel.fuel_liters)} L (~₹${Math.round(Number(fuel.fuel_cost) || 0)})</div>
     </div>
@@ -283,12 +279,7 @@ function getRoutePopupHtml(route, color) {
 }
 
 function getRoutePaint(property, selectedValue, defaultValue) {
-  const selectedRoute = [
-    "==",
-    ["get", "routeId"],
-    selectedRouteId,
-  ];
-
+  const selectedRoute = ["==", ["get", "routeId"], selectedRouteId];
   const isSelected = selectedRouteId !== null;
 
   if (property === "line-color") {
@@ -320,10 +311,7 @@ function getRoutePaint(property, selectedValue, defaultValue) {
 function applyRouteHighlightStyle() {
   if (!mapInstance || !mapStyleLoaded) return;
 
-  [
-    ROUTE_ALTERNATIVE_LAYER_ID,
-    ROUTE_RECOMMENDED_LAYER_ID,
-  ].forEach((layerId) => {
+  [ROUTE_ALTERNATIVE_LAYER_ID, ROUTE_RECOMMENDED_LAYER_ID].forEach((layerId) => {
     if (!mapInstance.getLayer(layerId)) return;
 
     mapInstance.setPaintProperty(
@@ -349,19 +337,16 @@ function applyRouteHighlightStyle() {
 function registerRouteClickHandlers() {
   if (routeClickHandlersRegistered) return;
 
-  const layerIds = [
-    ROUTE_ALTERNATIVE_LAYER_ID,
-    ROUTE_RECOMMENDED_LAYER_ID,
-  ];
+  const layerIds = [ROUTE_ALTERNATIVE_LAYER_ID, ROUTE_RECOMMENDED_LAYER_ID];
 
   mapInstance.on("click", layerIds, (event) => {
     const feature = event.features && event.features[0];
     if (!feature) return;
 
-    routePopup = new maplibregl.Popup({
-      closeButton: true,
-      offset: 10,
-    })
+    // FIX: close any previous popup before opening a new one
+    if (routePopup) routePopup.remove();
+
+    routePopup = new maplibregl.Popup({ closeButton: true, offset: 10 })
       .setLngLat(event.lngLat)
       .setHTML(feature.properties.popupHtml)
       .addTo(mapInstance);
@@ -387,16 +372,8 @@ function addRouteMarkers(source, destination) {
   }
 
   const markerConfigs = [
-    {
-      type: "start",
-      place: source,
-      label: "Source",
-    },
-    {
-      type: "destination",
-      place: destination,
-      label: "Destination",
-    },
+    { type: "start", place: source, label: "Source" },
+    { type: "destination", place: destination, label: "Destination" },
   ];
 
   markerConfigs.forEach(({ type, place, label }) => {
@@ -408,10 +385,7 @@ function addRouteMarkers(source, destination) {
       element: createCustomMarker(type),
       anchor: "center",
     })
-      .setLngLat([
-        Number(place.lon),
-        Number(place.lat),
-      ])
+      .setLngLat([Number(place.lon), Number(place.lat)])
       .setPopup(popup)
       .addTo(mapInstance);
 
@@ -419,12 +393,19 @@ function addRouteMarkers(source, destination) {
   });
 }
 
+function getAlternativeColor(route, fallbackIndex) {
+  const alternativeColors = ["#F59E0B", "#8B5CF6", "#06B6D4"];
+  const rank = Number(route.rank);
+  // FIX: avoid negative / NaN indexes when rank is missing or 1
+  const base = Number.isFinite(rank) ? rank - 2 : fallbackIndex;
+  const index =
+    ((base % alternativeColors.length) + alternativeColors.length) %
+    alternativeColors.length;
+  return alternativeColors[index] || "#94A3B8";
+}
+
 function renderRouteOverlays() {
-  if (
-    !mapInstance ||
-    !mapStyleLoaded ||
-    !currentRouteData
-  ) {
+  if (!mapInstance || !mapStyleLoaded || !currentRouteData) {
     return;
   }
 
@@ -445,67 +426,34 @@ function renderRouteOverlays() {
   }
 
   routeBounds = new maplibregl.LngLatBounds();
-
-  routeBounds.extend([
-    Number(source.lon),
-    Number(source.lat),
-  ]);
-
-  routeBounds.extend([
-    Number(destination.lon),
-    Number(destination.lat),
-  ]);
+  routeBounds.extend([Number(source.lon), Number(source.lat)]);
+  routeBounds.extend([Number(destination.lon), Number(destination.lat)]);
 
   addRouteMarkers(source, destination);
 
-  const alternativeColors = [
-    "#F59E0B",
-    "#8B5CF6",
-    "#06B6D4",
-  ];
-
-  const routes = [
-    ...(currentRouteData.routes || []),
-  ].reverse();
-
+  // Reverse so the recommended route is drawn on top
+  const routes = [...(currentRouteData.routes || [])].reverse();
   const features = [];
 
-  routes.forEach((route) => {
-    if (
-      !Array.isArray(route.coordinates) ||
-      route.coordinates.length === 0
-    ) {
+  routes.forEach((route, index) => {
+    if (!Array.isArray(route.coordinates) || route.coordinates.length === 0) {
       return;
     }
 
+    // Backend sends [lat, lon]; MapLibre needs [lon, lat]
     const coordinates = route.coordinates
-      .filter(
-        (point) =>
-          Array.isArray(point) &&
-          validLatLon(point[0], point[1])
-      )
-      .map(([latitude, longitude]) => [
-        Number(longitude),
-        Number(latitude),
-      ]);
+      .filter((point) => Array.isArray(point) && validLatLon(point[0], point[1]))
+      .map(([latitude, longitude]) => [Number(longitude), Number(latitude)]);
 
     if (coordinates.length === 0) return;
 
-    coordinates.forEach((coordinate) => {
-      routeBounds.extend(coordinate);
-    });
+    coordinates.forEach((coordinate) => routeBounds.extend(coordinate));
 
     const isRecommended = Boolean(route.is_recommended);
-
-    const color = isRecommended
-      ? "#10B981"
-      : alternativeColors[
-          (Number(route.rank) - 2) % alternativeColors.length
-        ] || "#94A3B8";
-
+    const color = isRecommended ? "#10B981" : getAlternativeColor(route, index);
     const popupHtml = getRoutePopupHtml(route, color);
 
-    const feature = {
+    features.push({
       type: "Feature",
       properties: {
         routeId: String(route.route_id),
@@ -519,9 +467,7 @@ function renderRouteOverlays() {
         type: "LineString",
         coordinates,
       },
-    };
-
-    features.push(feature);
+    });
 
     routeLayersData.push({
       routeId: String(route.route_id),
@@ -559,15 +505,16 @@ function renderRouteOverlays() {
     type: "line",
     source: ROUTES_SOURCE_ID,
     filter: ["==", ["get", "isRecommended"], false],
+    // FIX: line-dasharray is a PAINT property, not a layout property
     layout: {
       "line-cap": "round",
       "line-join": "round",
-      "line-dasharray": [2, 2],
     },
     paint: {
       "line-color": ["get", "color"],
       "line-width": ["get", "weight"],
       "line-opacity": ["get", "opacity"],
+      "line-dasharray": [2, 2],
     },
   });
 
@@ -614,29 +561,21 @@ function renderRoutesOnMap(routeData) {
     initMap(mapApiKey);
   }
 
-  if (mapStyleLoaded) {
+  if (mapInstance && mapStyleLoaded) {
     renderRouteOverlays();
   }
 }
 
 function openSelectedRoutePopup() {
-  const route = routeLayersData.find(
-    (item) => item.routeId === selectedRouteId
-  );
+  const route = routeLayersData.find((item) => item.routeId === selectedRouteId);
 
   if (!route || !route.coordinates.length) return;
 
-  const midpoint =
-    route.coordinates[
-      Math.floor(route.coordinates.length / 2)
-    ];
+  const midpoint = route.coordinates[Math.floor(route.coordinates.length / 2)];
 
   if (routePopup) routePopup.remove();
 
-  routePopup = new maplibregl.Popup({
-    closeButton: true,
-    offset: 10,
-  })
+  routePopup = new maplibregl.Popup({ closeButton: true, offset: 10 })
     .setLngLat(midpoint)
     .setHTML(route.popupHtml)
     .addTo(mapInstance);
@@ -669,12 +608,7 @@ function highlightRouteOnMap(routeId) {
  * Re-centers the map to the bounds of the current route and markers.
  */
 function recenterMap() {
-  if (
-    !mapInstance ||
-    !mapStyleLoaded ||
-    !routeBounds ||
-    routeBounds.isEmpty()
-  ) {
+  if (!mapInstance || !mapStyleLoaded || !routeBounds || routeBounds.isEmpty()) {
     return;
   }
 

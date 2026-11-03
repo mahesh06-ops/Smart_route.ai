@@ -12,13 +12,28 @@ let demoMode = false;
 let appSettings = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
+  if (window.location.protocol === "file:") {
+    console.warn(
+      "⚠️ Smart Route AI is running from a local file (file://). API requests require the backend server at http://127.0.0.1:8000."
+    );
+  } else if (window.location.port && window.location.port !== "8000") {
+    console.warn(
+      `⚠️ Smart Route AI is opened on port ${window.location.port} (e.g. Live Server). The backend API is served at http://127.0.0.1:8000.`
+    );
+  }
+
   // Load settings first so the map receives its key before initialization.
   await loadSystemSettings();
 
   const mapKey = appSettings?.maptiler_api_key || "";
 
+  // CHANGED: start the map in the style that matches the current page theme.
+  const startStyle = document.body.classList.contains("light-theme")
+    ? "light"
+    : "streets";
+
   if (typeof initMap === "function") {
-    initMap(mapKey, "streets");
+    initMap(mapKey, startStyle);
   } else {
     console.error(
       "initMap() is unavailable. Check that frontend/js/map.js loads before app.js."
@@ -368,6 +383,11 @@ function setupControls() {
   const themeButton = document.getElementById("themeToggleBtn");
 
   if (themeButton) {
+    // CHANGED: make sure the icon matches the theme on first load.
+    themeButton.innerHTML = document.body.classList.contains("light-theme")
+      ? "🌙"
+      : "☀️";
+
     themeButton.addEventListener("click", () => {
       const isLight =
         document.body.classList.toggle("light-theme");

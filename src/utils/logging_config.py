@@ -1,4 +1,4 @@
-﻿"""
+"""
 Safe logging configuration for Smart Route AI.
 Prevents sensitive API keys from appearing in logs.
 """
@@ -13,7 +13,7 @@ class RedactingFormatter(logging.Formatter):
     def __init__(self, fmt: str = None, datefmt: str = None):
         super().__init__(fmt, datefmt)
         self.secrets = [
-            settings.MAP_API_KEY,
+            settings.MAPTILER_API_KEY,
             settings.WEATHER_API_KEY,
             settings.TRAFFIC_API_KEY,
         ]
@@ -40,4 +40,3 @@ def setup_logger(name: str = "SmartRouteAI") -> logging.Logger:
 
 
 logger = setup_logger()
-

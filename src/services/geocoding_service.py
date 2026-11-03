@@ -10,6 +10,7 @@ Features:
 import urllib.parse
 from typing import Dict, Any, Optional, Tuple
 import httpx
+from src.config.settings import settings
 from src.utils.logging_config import logger
 from src.utils.validation import sanitize_string, validate_coordinates
 
@@ -61,21 +62,27 @@ CITY_CACHE: Dict[str, Tuple[float, float, str]] = {
 class GeocodingService:
     NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
     USER_AGENT = "SmartRouteAI/1.0 (academic-navigation-system)"
+    _query_cache: Dict[str, Dict[str, Any]] = {}
 
     @classmethod
     async def geocode(cls, query: str) -> Dict[str, Any]:
         """
         Geocodes a place name to coordinates {lat, lon, display_name, source}.
+        Tries TomTom Search API first, caching results by lowercase query.
+        Falls back to curated instant cache and Nominatim.
         """
         cleaned = sanitize_string(query)
         if not cleaned:
             return {"success": False, "error": "Location query cannot be empty."}
 
-        # 1. Check instant curated cache
         lookup_key = cleaned.lower()
+        if lookup_key in cls._query_cache:
+            return dict(cls._query_cache[lookup_key])
+
+        # 1. Check instant curated cache
         if lookup_key in CITY_CACHE:
             lat, lon, display_name = CITY_CACHE[lookup_key]
-            return {
+            result = {
                 "success": True,
                 "lat": lat,
                 "lon": lon,
@@ -83,11 +90,53 @@ class GeocodingService:
                 "query": cleaned,
                 "source": "curated_cache",
             }
+            cls._query_cache[lookup_key] = result
+            return result
+
+        # 2. Try TomTom Search API
+        key = settings.TRAFFIC_API_KEY
+        if key and not key.startswith("YOUR_"):
+            try:
+                encoded_q = urllib.parse.quote(cleaned)
+                url = f"https://api.tomtom.com/search/2/geocode/{encoded_q}.json"
+                params = {
+                    "key": key,
+                    "limit": 1,
+                    "countrySet": "IN",
+                    "language": "en-GB",
+                }
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.get(url, params=params)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        results = data.get("results", [])
+                        if results and len(results) > 0:
+                            first = results[0]
+                            pos = first.get("position", {})
+                            lat = float(pos.get("lat", 0.0))
+                            lon = float(pos.get("lon", 0.0))
+                            address = first.get("address", {})
+                            display_name = address.get("freeformAddress") or cleaned
+                            if validate_coordinates(lat, lon):
+                                result = {
+                                    "success": True,
+                                    "lat": lat,
+                                    "lon": lon,
+                                    "display_name": display_name,
+                                    "query": cleaned,
+                                    "source": "tomtom_search",
+                                }
+                                cls._query_cache[lookup_key] = result
+                                return result
+                    else:
+                        logger.warning(f"TomTom search returned HTTP {resp.status_code}")
+            except Exception as e:
+                logger.warning(f"TomTom search failed ({type(e).__name__})")
 
         # Check partial match in cache
         for k, (lat, lon, d_name) in CITY_CACHE.items():
             if k in lookup_key or lookup_key in k:
-                return {
+                result = {
                     "success": True,
                     "lat": lat,
                     "lon": lon,
@@ -95,8 +144,10 @@ class GeocodingService:
                     "query": cleaned,
                     "source": "curated_cache_partial",
                 }
+                cls._query_cache[lookup_key] = result
+                return result
 
-        # 2. Query live Nominatim API
+        # 3. Query live Nominatim API
         try:
             params = {
                 "q": cleaned,
@@ -114,7 +165,7 @@ class GeocodingService:
                         lat = float(first["lat"])
                         lon = float(first["lon"])
                         if validate_coordinates(lat, lon):
-                            return {
+                            result = {
                                 "success": True,
                                 "lat": lat,
                                 "lon": lon,
@@ -122,10 +173,12 @@ class GeocodingService:
                                 "query": cleaned,
                                 "source": "nominatim_live",
                             }
+                            cls._query_cache[lookup_key] = result
+                            return result
         except Exception as e:
-            logger.warning(f"Live geocoding network attempt for '{cleaned}' failed: {e}")
+            logger.warning(f"Live geocoding network attempt for '{cleaned}' failed: {type(e).__name__}")
 
-        # 3. Friendly failure message
+        # 4. Friendly failure message
         return {
             "success": False,
             "error": f"Location '{cleaned}' not found. Please try entering a known city name (e.g. Ballari, Bengaluru, Hyderabad, Mumbai).",

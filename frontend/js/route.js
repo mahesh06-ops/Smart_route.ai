@@ -4,6 +4,16 @@
 
 let currentRouteResponse = null;
 
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Format minutes into "Xh Ym" or "Y mins"
 function formatDuration(minutes) {
   const m = Math.round(minutes);
@@ -70,6 +80,9 @@ async function calculateSmartRoute(formData) {
 
     // Render components
     renderRecommendationCard(data.recommended_route, data.explanation);
+    if (data.recommended_route && data.recommended_route.weather) {
+      renderWeatherForecast(data.recommended_route.weather);
+    }
     renderComparisonCards(data.routes);
     renderComparisonTable(data.routes);
     updateCompareBanner(data);
@@ -126,7 +139,12 @@ function renderRecommendationCard(rec, explanation) {
 
   // Name & Score
   const nameEl = document.getElementById("recRouteName");
-  if (nameEl) nameEl.textContent = rec.route_name;
+  if (nameEl) {
+    const liveBadge = rec.is_live_route
+      ? `<span class="route-tag-pill live" style="background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px;">LIVE</span>`
+      : `<span class="route-tag-pill simulated" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px;">SIMULATED</span>`;
+    nameEl.innerHTML = `${escapeHtml(rec.route_name)} ${liveBadge}`;
+  }
   const scoreEl = document.getElementById("recSmartScore");
   if (scoreEl) scoreEl.textContent = Math.round(rec.smart_score);
 
@@ -232,8 +250,11 @@ function renderComparisonCards(routes) {
     card.id = `compareCard_${r.route_id}`;
 
     const trafColor = r.traffic.level === "LOW" ? "#10B981" : r.traffic.level === "MODERATE" ? "#F59E0B" : "#EF4444";
-    const tagsHtml = (r.tags || [])
-      .map((t) => `<span class="route-tag-pill ${t.type}">${t.label}</span>`)
+    const liveBadge = r.is_live_route
+      ? `<span class="route-tag-pill live" style="background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 700;">LIVE</span>`
+      : `<span class="route-tag-pill simulated" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">SIMULATED</span>`;
+    const tagsHtml = liveBadge + (r.tags || [])
+      .map((t) => `<span class="route-tag-pill ${escapeHtml(t.type)}">${escapeHtml(t.label)}</span>`)
       .join("");
 
     const highwaysText = r.major_highways ? r.major_highways.join(" • ") : (r.via_summary || "Highway Corridor");
@@ -248,18 +269,18 @@ function renderComparisonCards(routes) {
           ${tagsHtml}
         </div>
 
-        <h4 class="compare-card-title">${r.route_name}</h4>
+        <h4 class="compare-card-title">${escapeHtml(r.route_name)}</h4>
         
         <div class="compare-card-highways">
-          <span>🛣️</span> <span>${highwaysText}</span>
+          <span>🛣️</span> <span>${escapeHtml(highwaysText)}</span>
         </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; font-size: 0.78rem;">
           <span style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-secondary);">
-            🏗️ ${r.road_type || "Divided Expressway"}
+            🏗️ ${escapeHtml(r.road_type || "Divided Expressway")}
           </span>
           <span style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-secondary);">
-            💳 ${r.toll_info || "Toll-Free"}
+            💳 ${escapeHtml(r.toll_info || "Toll-Free")}
           </span>
         </div>
 
@@ -274,7 +295,7 @@ function renderComparisonCards(routes) {
           </div>
           <div class="compare-metric-item">
             <span class="compare-metric-label">Traffic Flow</span>
-            <span class="compare-metric-value" style="color: ${trafColor}">${r.traffic.level}</span>
+            <span class="compare-metric-value" style="color: ${trafColor}">${escapeHtml(r.traffic.level)}</span>
           </div>
           <div class="compare-metric-item">
             <span class="compare-metric-label">Safety Index</span>
@@ -282,7 +303,7 @@ function renderComparisonCards(routes) {
           </div>
           <div class="compare-metric-item">
             <span class="compare-metric-label">Weather</span>
-            <span class="compare-metric-value">${r.weather.condition} (${r.weather.temperature_c}°C)</span>
+            <span class="compare-metric-value">${escapeHtml(r.weather.condition)} (${r.weather.temperature_c}°C)</span>
           </div>
           <div class="compare-metric-item">
             <span class="compare-metric-label">Fuel & Cost</span>
@@ -323,10 +344,13 @@ function renderComparisonTable(routes) {
 
     tr.innerHTML = `
       <td>
-        <strong style="color: ${r.is_recommended ? "#10B981" : "inherit"}; font-size: 0.95rem;">${r.route_name}</strong>
+        <strong style="color: ${r.is_recommended ? "#10B981" : "inherit"}; font-size: 0.95rem;">${escapeHtml(r.route_name)}</strong>
         ${r.is_recommended ? '<span style="font-size: 10px; background: #10B981; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 800;">RECOMMENDED</span>' : ""}
+        ${r.is_live_route
+          ? '<span style="font-size: 10px; background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 700;">LIVE</span>'
+          : '<span style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 700;">SIMULATED</span>'}
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
-          🛣️ ${r.via_summary || "Highway Corridor"} | 🏗️ ${r.road_type || "Divided Highway"}
+          🛣️ ${escapeHtml(r.via_summary || "Highway Corridor")} | 🏗️ ${escapeHtml(r.road_type || "Divided Highway")}
         </div>
       </td>
       <td><strong>${r.distance_km} km</strong></td>
@@ -334,8 +358,8 @@ function renderComparisonTable(routes) {
         <strong>${formatDuration(r.duration_minutes)}</strong>
         ${r.traffic.delay_minutes > 0 ? `<div style="font-size: 11px; color: #EF4444;">+${Math.round(r.traffic.delay_minutes)}m delay</div>` : '<div style="font-size: 11px; color: #10B981;">Smooth</div>'}
       </td>
-      <td><span style="font-weight: 700; color: ${trafColor}">${r.traffic.level} (${r.traffic.score}/100)</span></td>
-      <td>${r.weather.condition} (${r.weather.temperature_c}°C)</td>
+      <td><span style="font-weight: 700; color: ${trafColor}">${escapeHtml(r.traffic.level)} (${r.traffic.score}/100)</span></td>
+      <td>${escapeHtml(r.weather.condition)} (${r.weather.temperature_c}°C)</td>
       <td><span style="font-weight: 700; color: ${r.safety.color}">${r.safety.score}/100</span></td>
       <td>${r.fuel.fuel_liters} L <span style="font-size: 11px; color: var(--text-muted);">(~₹${Math.round(r.fuel.fuel_cost)})</span></td>
       <td>
@@ -403,19 +427,20 @@ function inspectRouteDetails(routeId) {
         <!-- Column 1: Highway & Road Quality -->
         <div style="background: var(--bg-card); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
           <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">🛣️ Corridor & Infrastructure</h4>
-          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Via:</strong> ${route.via_summary || "National Highway"}</p>
-          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Road Profile:</strong> ${route.road_type || "Divided Multi-Lane Highway"}</p>
-          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Tolls & Tariffs:</strong> ${route.toll_info || "Toll-Free Route"}</p>
-          <p style="font-size: 0.88rem; color: var(--text-secondary);"><strong>Provider:</strong> ${route.source_provider}</p>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Via:</strong> ${escapeHtml(route.via_summary || "National Highway")}</p>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Road Profile:</strong> ${escapeHtml(route.road_type || "Divided Multi-Lane Highway")}</p>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Tolls & Tariffs:</strong> ${escapeHtml(route.toll_info || "Toll-Free Route")}</p>
+          <p style="font-size: 0.88rem; color: var(--text-secondary);"><strong>Provider:</strong> ${escapeHtml(route.source_provider)}</p>
         </div>
 
         <!-- Column 2: Environmental & Real-Time Friction -->
         <div style="background: var(--bg-card); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
           <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">🚦 Traffic & Environmental Friction</h4>
-          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Traffic Level:</strong> <span style="font-weight: 700; color: ${trafColor}">${route.traffic.level} (${route.traffic.score}/100)</span></p>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Traffic Level:</strong> <span style="font-weight: 700; color: ${trafColor}">${escapeHtml(route.traffic.level)} (${route.traffic.score}/100)</span></p>
           <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Congestion Delay:</strong> ${Math.round(route.traffic.delay_minutes || 0)} mins added</p>
-          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Weather Conditions:</strong> ${route.weather.condition} (${route.weather.temperature_c}°C, Wind ${route.weather.wind_speed_kmh} km/h)</p>
-          <p style="font-size: 0.88rem; color: var(--text-secondary);"><strong>Safety Grade:</strong> ${route.safety.score}/100 (${route.safety.category || 'High Safety'})</p>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Traffic Source:</strong> <span style="font-weight: 700; color: ${route.traffic.is_live ? '#10B981' : '#F59E0B'};">${escapeHtml(route.traffic.data_source || 'Analytical model')}</span></p>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;"><strong>Weather Conditions:</strong> ${escapeHtml(route.weather.condition)} (${route.weather.temperature_c}°C, Wind ${route.weather.wind_speed_kmh} km/h)</p>
+          <p style="font-size: 0.88rem; color: var(--text-secondary);"><strong>Safety Grade:</strong> ${route.safety.score}/100 (${escapeHtml(route.safety.category || 'High Safety')})</p>
         </div>
 
         <!-- Column 3: Multi-Factor Score Allocation -->
@@ -453,3 +478,113 @@ function showToast(message, type = "info") {
     toast.remove();
   }, 4000);
 }
+
+/**
+ * Renders the Live Meteorological Corridor Forecast Panel in index.html
+ */
+function renderWeatherForecast(weather) {
+  if (!weather) return;
+
+  const mainIcon = document.getElementById("weathMainIcon");
+  if (mainIcon) mainIcon.textContent = weather.icon || "☀️";
+
+  const liveTag = document.getElementById("weathLiveTag");
+  if (liveTag) {
+    if (weather.is_live) {
+      liveTag.textContent = weather.data_source ? `LIVE: ${weather.data_source.toUpperCase()}` : "LIVE WEATHER";
+      liveTag.className = "badge-live-pulse";
+      liveTag.style.background = "rgba(16, 185, 129, 0.15)";
+      liveTag.style.color = "#10B981";
+      liveTag.style.borderColor = "rgba(16, 185, 129, 0.4)";
+    } else {
+      liveTag.textContent = "SIMULATED WEATHER";
+      liveTag.className = "badge-live-pulse";
+      liveTag.style.background = "rgba(245, 158, 11, 0.15)";
+      liveTag.style.color = "#F59E0B";
+      liveTag.style.borderColor = "rgba(245, 158, 11, 0.4)";
+    }
+  }
+
+  const summaryText = document.getElementById("weathSummaryText");
+  if (summaryText) {
+    summaryText.textContent = weather.impact_summary || weather.condition_desc || "Optimal conditions along journey corridor.";
+  }
+
+  // Quick Origin vs Destination Pills
+  const pillOrigin = document.getElementById("pillOriginVal");
+  if (pillOrigin && weather.origin_weather) {
+    const o = weather.origin_weather;
+    pillOrigin.textContent = `${o.temperature_c}°C ${o.icon || ''} ${o.condition || ''}`;
+  }
+
+  const pillDest = document.getElementById("pillDestVal");
+  if (pillDest && weather.destination_weather) {
+    const d = weather.destination_weather;
+    pillDest.textContent = `${d.temperature_c}°C ${d.icon || ''} ${d.condition || ''}`;
+  }
+
+  // Weather Parameters Grid
+  const tempDetail = document.getElementById("weathTempDetail");
+  if (tempDetail) {
+    const appTemp = weather.apparent_temperature_c != null ? weather.apparent_temperature_c : weather.temperature_c;
+    tempDetail.textContent = `${weather.temperature_c}°C (Feels ${appTemp}°C)`;
+  }
+
+  const precipDetail = document.getElementById("weathPrecipDetail");
+  if (precipDetail) {
+    const prob = weather.precipitation_probability != null ? weather.precipitation_probability : 0;
+    precipDetail.textContent = `${weather.rain_mm || 0} mm (${prob}% chance)`;
+  }
+
+  const windDetail = document.getElementById("weathWindDetail");
+  if (windDetail) {
+    const windSpd = weather.wind_speed_kmh || weather.wind_kmh || 12;
+    const gusts = weather.wind_gusts_kmh || Math.round(windSpd * 1.3);
+    windDetail.textContent = `${windSpd} km/h (Gusts ${gusts} km/h)`;
+  }
+
+  const visDetail = document.getElementById("weathVisDetail");
+  if (visDetail) {
+    const vis = weather.visibility_km != null ? weather.visibility_km : 10.0;
+    const desc = vis >= 8.0 ? "Optimal" : vis >= 4.0 ? "Moderate" : "Caution";
+    visDetail.textContent = `${vis} km (${desc})`;
+  }
+
+  // Active Meteorological Hazards
+  const hazardsContainer = document.getElementById("weatherHazardsContainer");
+  const hazardsList = document.getElementById("weatherHazardsList");
+  if (hazardsContainer && hazardsList) {
+    const hazards = Array.isArray(weather.hazards) ? weather.hazards : [];
+    if (hazards.length > 0) {
+      hazardsList.innerHTML = hazards
+        .map((h) => `<span class="hazard-badge">⚠️ ${h}</span>`)
+        .join("");
+      hazardsContainer.style.display = "flex";
+    } else {
+      hazardsContainer.style.display = "none";
+    }
+  }
+
+  // 12-Hour Hourly Forecast Timeline Strip
+  const hourlyStrip = document.getElementById("hourlyForecastStrip");
+  if (hourlyStrip) {
+    hourlyStrip.innerHTML = "";
+    const hourly = Array.isArray(weather.forecast_hourly) ? weather.forecast_hourly : [];
+    if (hourly.length === 0) {
+      hourlyStrip.innerHTML = `<span style="font-size: 0.78rem; color: var(--text-muted); padding: 8px;">12-hour forecast timeline currently unavailable.</span>`;
+    } else {
+      hourly.forEach((item) => {
+        const chip = document.createElement("div");
+        chip.className = "hourly-chip";
+        chip.innerHTML = `
+          <span class="hourly-chip-time">${item.time || '12:00'}</span>
+          <span class="hourly-chip-icon">${item.icon || '☀️'}</span>
+          <span class="hourly-chip-temp">${Math.round(item.temp_c)}°C</span>
+          <span class="hourly-chip-precip">${item.precip_prob_pct || 0}%</span>
+        `;
+        hourlyStrip.appendChild(chip);
+      });
+    }
+  }
+}
+

@@ -13,7 +13,7 @@ ENV_PATH = BASE_DIR / ".env"
 if ENV_PATH.exists():
     try:
         from dotenv import load_dotenv
-        load_dotenv(dotenv_path=ENV_PATH)
+        load_dotenv(dotenv_path=ENV_PATH, override=True)
     except ImportError:
         pass
 
@@ -24,22 +24,27 @@ class Settings:
     APP_VERSION: str = "1.0.0"
     TAGLINE: str = "Find the smartest route, not just the shortest route."
 
+    # Environment file path
+    ENV_PATH: Path = ENV_PATH
+
     # Server settings
     HOST: str = os.getenv("HOST", "127.0.0.1")
     PORT: int = int(os.getenv("PORT", "8000"))
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
     # API Keys
-    # MapTiler browser-facing basemap key; restrict it to trusted origins.
-    MAPTILER_API_KEY: str = (
-    os.getenv("MAPTILER_API_KEY", "").strip()
-    or os.getenv("VITE_MAPTILER_API_KEY", "").strip()
-    or os.getenv("MAP_API_KEY", "").strip()
-)
-    MAP_API_KEY: str = os.getenv("MAP_API_KEY", "")
+    _raw_maptiler = os.getenv("MAPTILER_API_KEY", "").strip()
+    MAPTILER_API_KEY: str = "" if _raw_maptiler.startswith("YOUR_") else _raw_maptiler
 
-    WEATHER_API_KEY: str = os.getenv("WEATHER_API_KEY", "")
-    TRAFFIC_API_KEY: str = os.getenv("TRAFFIC_API_KEY", "")
+    _raw_weather = os.getenv("WEATHER_API_KEY", "").strip() or (os.getenv("WEATHER_PROVIDER", "").strip() if len(os.getenv("WEATHER_PROVIDER", "").strip()) > 15 else "")
+    WEATHER_API_KEY: str = "" if _raw_weather.startswith("YOUR_") else _raw_weather
+    _raw_wp = os.getenv("WEATHER_PROVIDER", "openweathermap").lower().strip()
+    WEATHER_PROVIDER: str = "openweathermap" if len(_raw_wp) > 15 else _raw_wp
+
+    _raw_traffic = os.getenv("TRAFFIC_API_KEY", "").strip() or (os.getenv("TRAFFIC_PROVIDER", "").strip() if len(os.getenv("TRAFFIC_PROVIDER", "").strip()) > 15 else "")
+    TRAFFIC_API_KEY: str = "" if _raw_traffic.startswith("YOUR_") else _raw_traffic
+    _raw_tp = os.getenv("TRAFFIC_PROVIDER", "tomtom").lower().strip()
+    TRAFFIC_PROVIDER: str = "tomtom" if len(_raw_tp) > 15 else _raw_tp
 
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./smart_route.db")
@@ -53,7 +58,6 @@ class Settings:
         "suv": 11.0,        # km / Liter
         "custom": 14.0      # default custom km / Liter
     }
-
 
     @classmethod
     def get_public_settings(cls) -> Dict[str, Any]:
@@ -70,8 +74,10 @@ class Settings:
                 and not cls.MAPTILER_API_KEY.startswith("YOUR_")
             ),
             "routing_configured": True,  # OSRM + Fallback available
-            "weather_configured": True,  # Open-Meteo + Fallback available
-            "traffic_configured": True,  # Simulated + Live fallback available
+            "weather_configured": True,  # OpenWeatherMap / Open-Meteo available
+            "traffic_configured": True,  # TomTom / Simulated available
+            "weather_provider": cls.WEATHER_PROVIDER,
+            "traffic_provider": cls.TRAFFIC_PROVIDER,
             "default_fuel_price": cls.DEFAULT_FUEL_PRICE,
             "vehicle_mileage": cls.VEHICLE_MILEAGE,
         }
@@ -87,4 +93,3 @@ class Settings:
 
 
 settings = Settings()
-
